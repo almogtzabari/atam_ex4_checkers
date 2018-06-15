@@ -1,4 +1,46 @@
-tks = 177560
-tkb = 177562
 tps = 177564
 tpb = 177566
+len1 = 14.
+
+.=torg + 1000
+main:
+  mov pc, sp
+  tst -(sp)
+
+  mov #printc, @#20
+  mov #200, @#22
+  mov #printc, @#64
+  mov #200,@#66
+  mov #100, @#tps
+
+  mov #buf1, -(sp)
+  mov #len1, -(sp)
+  jsr pc, printbuf
+  add #4, sp
+  w: br w
+
+  printbuf:
+    tst busy
+    bgt printbuf
+    mov #1, busy
+    mov 4(sp), pointer
+    mov 2(sp), count
+    iot
+    rts pc
+
+printc:
+tst count
+ble sof
+movb @pointer, @#tpb
+inc pointer
+dec count
+rti
+sof: clr busy
+rti
+
+
+buf1:
+  .ascii <KLUM EFES NOOB>
+  pointer: .blkw 1
+  count: .word  0
+  busy: .word 0
