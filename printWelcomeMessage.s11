@@ -1,6 +1,6 @@
 tps = 177564
 tpb = 177566
-len1 = 14.
+len1 = 50.
 
 .=torg + 1000
 main:
@@ -40,7 +40,7 @@ rti
 
 
 buf1:
-  .ascii <KLUM EFES NOOB>
+  .ascii <Welcome to 312433576 and 203438775 checkers game! >
   pointer: .blkw 1
   count: .word  0
   busy: .word 0
