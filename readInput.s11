@@ -108,6 +108,9 @@ bne noCom
 inc pointer
 cmp @pointer, #'p
 bne noCom
+inc pointer
+cmpb #' , @pointer
+bne noCom
 jmp stopCom
 
 staCom:
@@ -117,6 +120,9 @@ cmpb @pointer, #'r
 bne noCom
 inc pointer
 cmpb @pointer, #'t
+bne noCom
+inc pointer
+cmpb #' , @pointer
 bne noCom
 jmp startCom
 
@@ -132,6 +138,9 @@ bne noCom
 inc pointer
 cmpb @pointer, #'e
 bne noCom
+inc pointer
+cmpb #' , @pointer
+bne noCom
 jmp timeCom
 
 mCom:
@@ -145,9 +154,36 @@ bne noCom
 inc pointer
 cmpb @pointer, #'e
 bne noCom
+inc pointer
+cmpb #' , @pointer
+bne noCom
 jmp moveCom
 
-noCom: halt
+noCom:
+; Prints cannot execute..
+mov #cannot, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #command, pointer
+mov #errorCom, errPtr
+cpyErr:
+cmpb  #' , @pointer
+beq donecpy
+cmpb  #0 , @pointer
+beq donecpy
+movb @pointer, @errPtr
+inc errPtr
+inc pointer
+jmp cpyErr
+
+donecpy:
+movb #'", @errPtr
+inc errPtr
+movb #'\0, @errPtr
+mov #errorCom, -(sp)
+jsr pc, printStr
+tst (sp)+
+rti
 
 startCom:
 inc pointer
@@ -163,9 +199,19 @@ jmp noCom
 
 wHuman:
 mov #1, wPlayer
+; Checks if after 'h' there is a space. if not -> noCom
+inc pointer
+cmpb #' , @pointer
+bne noCom
+dec pointer
 jmp setwTime
 wPC:
 mov #2, wPlayer
+; Checks if after 'c' there is a space. if not -> noCom
+inc pointer
+cmpb #' , @pointer
+bne noCom
+dec pointer
 jmp setwTime
 
 setwTime:
@@ -179,19 +225,23 @@ cmpb @pointer, #'9
 bgt noCom ; jumps if not a number
 ; If we got here it is a number
 rdWTime: ; Read White player time
-asl wTime ; multipied by 2
-asl wTime ; multipied by 4
-asl wTime ; multipied by 8
+mov r1, -(sp) ; Backing up r1
+mov wTime, r1
+mul #10., r1
+mov r1, wTime
+mov (sp)+, r1
 mov r0, -(sp) ; Backing up r0
 movb @pointer, r0
 bic #asciimask, r0
 add r0, wTime
 mov (sp)+, r0
 inc pointer
+cmpb #' , @pointer
+beq setBplyr
 cmpb @pointer, #'0
-blt setBplyr ; jumps if not a number
+blt jnoCom ; jumps if not a number
 cmpb @pointer, #'9
-bgt setBplyr ; jumps if not a number
+bgt jnoCom ; jumps if not a number
 jmp rdWTime
 
 setBplyr:
@@ -206,11 +256,23 @@ jmp noCom
 
 bHuman:
 mov #1, bPlayer
+; Checks if after 'h' there is a space. if not -> noCom
+inc pointer
+cmpb #' , @pointer
+bne jnoCom
+dec pointer
 jmp setbTime
 
 bPC:
 mov #2, bPlayer
+; Checks if after 'c' there is a space. if not -> noCom
+inc pointer
+cmpb #' , @pointer
+bne jnoCom
+dec pointer
 jmp setbTime
+
+                          jnoCom: jmp noCom
 
 setbTime:
 mov #0, bTime
@@ -218,14 +280,16 @@ inc pointer
 cmpb #' , @pointer
 beq setbTime ; skipping spaces
 cmpb @pointer, #'0
-blt noCom ; jumps if not a number
+blt jnoCom ; jumps if not a number
 cmpb  @pointer, #'9
-bgt noCom ; jumps if not a number
+bgt jnoCom ; jumps if not a number
 ; If we got here it is a number
 rdBTime: ; Read Black player time
-asl bTime ; multipied by 2
-asl bTime ; multipied by 4
-asl bTime ; multipied by 8
+mov r1, -(sp) ; Backing up r1
+mov bTime, r1
+mul #10., r1
+mov r1, bTime
+mov (sp)+, r1
 mov r0, -(sp) ; Backing up r0
 movb @pointer, r0
 bic #asciimask, r0
@@ -253,6 +317,17 @@ stopCom: halt
 timeCom: halt
 moveCom: halt
 
+
+.=torg + 3000
+command: .blkw 25.
+pointer: .blkw 1
+curChar: .byte 1
+.even
+errorCom: .blkw 25.
+errPtr: .blkw 1
+
+.even
+cannot: .ascii <Cannot\sexecute\s"\0>
 wPlayer: .byte 0
 .even
 wTime: .word 0
@@ -260,13 +335,32 @@ bPlayer: .byte 0
 .even
 bTime: .word 0
 
-
-
-
-.=torg + 3000
-command: .blkw 25.
-pointer: .blkw 1
-curChar: .byte 1
-
 .even
 TIMOUT:.word 1
+
+
+;========================================================================
+;                            FUNCTIONS
+;========================================================================
+
+printStr:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl printStr
+cmpb #'\0, @2(sp) ; Check if reached end of string.
+beq sof
+cmpb #'\r, @2(sp) ;Check if reached end of string and needs to print a new line.
+beq newline
+movb @2(sp), @#tpb ;Print char.
+inc 2(sp) ; Move to the next char.
+br printStr
+newline:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl newline
+movb #'\r, @#tpb ;Prints carrige return.
+wx: tstb @#tps ;Busy wait, wait till end of print.
+bpl wx
+movb #'\n, @#tpb ; Prints a new line.
+wz: tstb @#tps ;Busy wait, wait till end of print.
+bpl wz
+sof:
+rts pc
