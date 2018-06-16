@@ -163,11 +163,12 @@ mov #0 wTime
 inc pointer
 cmpb #' , @pointer
 beq setwTime ; skipping spaces
-cmpb #'0. , @pointer
+cmpb #'0 , @pointer
 ble noCom ; jumps if not a number
-cmpb #'9. , @pointer
+cmpb #'9 , @pointer
 bgt noCom ; jumps if not a number
 ; If we got here it is a number
+rdWTime: ; Read White player time
 asl wTime ; multipied by 2
 asl wTime ; multipied by 4
 asl wTime ; multipied by 8
@@ -176,6 +177,12 @@ mov @pointer, r0
 bic #asciimask, r0
 add r0, wTime
 mov (sp)+, r0
+inc pointer
+cmpb #'0 , @pointer
+ble setBplyr ; jumps if not a number
+cmpb #'9 , @pointer
+bgt setBplyr ; jumps if not a number
+jmp rdWTime
 
 wHuman:
 mov #1, wPlayer
