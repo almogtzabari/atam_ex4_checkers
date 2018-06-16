@@ -5,93 +5,106 @@ tpb = 177566
 
 .=torg + 1000
 main:
-  ; Initializing stack
-  mov pc, sp
-  tst -(sp)
+; Initializing stack
+mov pc, sp
+tst -(sp)
 
-  mov #command, pointer
-  ;mov #printc, @#64 ; printer subrotine
-  ;mov #200,@#66 ; printer priority
-  ;mov #100, @#tps ; printer interrupt = 1
+mov #command, pointer
+;mov #printc, @#64 ; printer subrotine
+;mov #200,@#66 ; printer priority
+;mov #100, @#tps ; printer interrupt = 1
 
-  mov #rInput, @#60 ; keyboard subrotine
-  mov #200,@#62 ; keyboard priority
-  mov #101,@#tks ; keyboard interrupt = 1 && RE = 1
+mov #rInput, @#60 ; keyboard subrotine
+mov #200,@#62 ; keyboard priority
+mov #101,@#tks ; keyboard interrupt = 1 && RE = 1
 w:
-  jmp w
+jmp w
 
-  ; Read input
-  rInput:
-  movb @#tkb, curChar
+; Read input
+rInput:
+movb @#tkb, curChar
 
-  ; Check if we reached the end of the command
-  mov r0, -(sp) ; Backing up r0
-  mov #command, r0 ; Moving command string address to r0
-  add #50., r0 ; Adding max length of string to r0.
-  cmp pointer, r0 ; Checks if the command reached 50 chars.
-  bgt ignore
-  ; We have not reached the end of the command
-  cmpb curChar, #'\r  ; checks if current char is ENTER
-  beq endOfIpt
-  cmpb #'\b, curChar  ; checks if current char is BackSpace
-  beq backspace
-  ; Current char is a neither ENTER nor BackSpace
-  movb curChar, @pointer
-  movb curChar, @#tpb ; sending char to print
-  loop: tstb @#tps
-  bpl loop
-  ; curChar was printed
-  inc pointer
-  mov (sp)+, r0 ; Restores r0.
-  inc @#tks ; RE = 1
-  rti
+; Check if we reached the end of the command
+mov r0, -(sp) ; Backing up r0
+mov #command, r0 ; Moving command string address to r0
+add #50., r0 ; Adding max length of string to r0.
+cmp pointer, r0 ; Checks if the command reached 50 chars.
+bgt ignore
+; We have not reached the end of the command
+cmpb curChar, #'\r  ; checks if current char is ENTER
+beq endOfIpt
+cmpb #'\b, curChar  ; checks if current char is BackSpace
+beq backspace
+; Current char is a neither ENTER nor BackSpace
+movb curChar, @pointer
+movb curChar, @#tpb ; sending char to print
+loop: tstb @#tps
+bpl loop
+; curChar was printed
+inc pointer
+mov (sp)+, r0 ; Restores r0.
+inc @#tks ; RE = 1
+rti
 
-  endOfIpt:
-    movb curChar, @#tks ; Prints Carrige Return/
-    w1:tstb @#tps
-      bpl w1
-      movb #'\r, @#tps ; Prints LineFeed.
-      w2:tstb @#tps
-        bpl w2
-      movb #'\r, pointer ; Adds linefeed to the command string.
-      inc pointer
+endOfIpt:
+movb #'\n, @#tpb ; Prints Carrige Return/
+w1:tstb @#tps
+bpl w1
+movb #'\r, @#tpb ; Prints LineFeed.
+w2:tstb @#tps
+bpl w2
+movb #'\r, pointer ; Adds linefeed to the command string.
+mov #command, pointer
+mov (sp)+, r0
+jsr pc, decode
+rti
+
 
 
 
 
 backspace:
-  cmp #command, pointer
-  beq ignore
-  dec pointer
-  movb #'\b, @#tpb
+cmp #command, pointer
+beq ignore
+dec pointer
+movb #'\b, @#tpb
 wait0:		tstb @#tps
-  bpl wait0
-  movb #' , @#tpb
+bpl wait0
+movb #' , @#tpb
 wait1:		tstb @#tps
-  bpl wait1
-  movb #'\b, @#tpb
-  wait2:		tstb @#tps
-    bpl wait2
-    inc @#tks ; RE = 1
-    mov (sp)+, r0 ; Restoring r0
-    rti
-  ignore:
-  mov (sp)+, r0 ; Restoring r0
-  inc @#tks ; RE = 1
-  rti
+bpl wait1
+movb #'\b, @#tpb
+wait2:		tstb @#tps
+bpl wait2
+inc @#tks ; RE = 1
+mov (sp)+, r0 ; Restoring r0
+rti
+ignore:
+mov (sp)+, r0 ; Restoring r0
+inc @#tks ; RE = 1
+rti
 
-endOfIpt:
+decode:
+cmpb @pointer, #'s
+beq sCommand
+cmpb @pointer, #'t
+beq tCommand
+cmpb @pointer, #'m
+beq mCommand
+
+sCommand: halt
+tCommand: halt
+mCommand: halt
 
 
 
 
 
 
+.=torg + 3000
+command: .blkw 25.
+pointer: .blkw 1
+curChar: .byte 1
 
-  .=torg + 3000
-  command: .blkw 25.
-  pointer: .blkw 1
-  curChar: .byte 1
-
-  .even
-  TIMOUT:.word 1
+.even
+TIMOUT:.word 1
