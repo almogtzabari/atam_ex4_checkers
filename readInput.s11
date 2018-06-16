@@ -319,6 +319,20 @@ Start:
 mov #newgame, -(sp)
 jsr pc, printStr
 tst (sp)+
+mov #wplyris, -(sp)
+jsr pc, printStr
+tst (sp)+
+cmpb #'h, wPlayer
+beq wHuman
+; White player is computer
+mov #computer, -(sp)
+jsr pc, printStr
+tst (sp)+
+wHuman:
+; White player is human
+mov #hmn, -(sp)
+jsr pc, printStr
+tst (sp)+
 rts pc
 
 stopCom: halt
@@ -382,3 +396,4 @@ welcome:.ascii <Welcome\sto\s312433576\sand\s203438775\scheckers\sgame!\r>
 newgame: .ascii<Starting\sa\snew\sgame\r>
 wplyris: .ascii<White\splayer\sis\s\0>
 hmn: .ascii<Human\s\0>
+computer: .ascii<Computer\s\0>
