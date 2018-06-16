@@ -2,6 +2,7 @@ tks = 177560
 tkb = 177562
 tps = 177564
 tpb = 177566
+asciimask = 177760
 
 .=torg + 1000
 main:
@@ -158,13 +159,23 @@ cmpb @pointer, #'c
 beq wPC
 jmp noCom
 setwTime:
+mov #0 wTime
 inc pointer
 cmpb #' , @pointer
 beq setwTime ; skipping spaces
-cmpb #'0 , @pointer
+cmpb #'0. , @pointer
 ble noCom ; jumps if not a number
-cmpb #'9 , @pointer
+cmpb #'9. , @pointer
 bgt noCom ; jumps if not a number
+; If we got here it is a number
+asl wTime ; multipied by 2
+asl wTime ; multipied by 4
+asl wTime ; multipied by 8
+mov r0, -(sp) ; Backing up r0
+mov @pointer, r0
+bic #asciimask, r0
+add r0, wTime
+mov (sp)+, r0
 
 wHuman:
 mov #1, wPlayer
