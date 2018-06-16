@@ -147,10 +147,42 @@ bne noCom
 jmp moveCom
 noCom: halt
 
-startCom: halt
+startCom:
+inc pointer
+cmpb  #' , @pointer
+beq startCom ; skipping spaces
+; Spaces skipped
+cmpb @pointer, #'h
+beq wHuman
+cmpb @pointer, #'c
+beq wPC
+jmp noCom
+setwTime:
+inc pointer
+cmpb #' , @pointer
+beq setwTime ; skipping spaces
+cmpb #'0 , @pointer
+ble noCom ; jumps if not a number
+cmpb #'9 , @pointer
+bgt noCom ; jumps if not a number
+
+wHuman:
+mov #1, wPlayer
+jmp setwTime
+wPC:
+mov #2, wPlayer
+jmp setwTime
+
 stopCom: halt
 timeCom: halt
 moveCom: halt
+
+wPlayer: .byte 0
+.even
+wTime: .word 0
+bPlayer: .byte 0
+.even
+bTime: .word 0
 
 
 
