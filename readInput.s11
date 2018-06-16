@@ -54,9 +54,10 @@ movb #'\r, @#tpb ; Prints LineFeed.
 w2:tstb @#tps
 bpl w2
 movb #'\r, pointer ; Adds linefeed to the command string.
-mov #command, pointer
-mov (sp)+, r0
-jsr pc, decode
+mov #command, pointer ; Pointer will point the beginning of the command
+mov (sp)+, r0 ; Restoring r0
+inc @#tks ; RE = 1
+jsr pc, decode ; Decoding the command
 rti
 
 
@@ -86,17 +87,24 @@ rti
 
 decode:
 cmpb @pointer, #'s
-beq sCommand
+beq sCom
 cmpb @pointer, #'t
-beq tCommand
+beq tCom
 cmpb @pointer, #'m
-beq mCommand
+beq mCom
+jmp noCom
 
-sCommand: halt
-tCommand: halt
-mCommand: halt
+sCom:
+inc pointer
+cmpb @pointer, #'t
+beq stCom
+jmp noCom
 
+tCom: halt
+mCom: halt
+noCom: halt
 
+stCom: halt
 
 
 
