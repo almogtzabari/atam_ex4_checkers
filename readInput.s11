@@ -146,6 +146,7 @@ inc pointer
 cmpb @pointer, #'e
 bne noCom
 jmp moveCom
+
 noCom: halt
 
 startCom:
@@ -153,36 +154,12 @@ inc pointer
 cmpb  #' , @pointer
 beq startCom ; skipping spaces
 ; Spaces skipped
+setWplyr:
 cmpb @pointer, #'h
 beq wHuman
 cmpb @pointer, #'c
 beq wPC
 jmp noCom
-setwTime:
-mov #0 wTime
-inc pointer
-cmpb #' , @pointer
-beq setwTime ; skipping spaces
-cmpb #'0 , @pointer
-ble noCom ; jumps if not a number
-cmpb #'9 , @pointer
-bgt noCom ; jumps if not a number
-; If we got here it is a number
-rdWTime: ; Read White player time
-asl wTime ; multipied by 2
-asl wTime ; multipied by 4
-asl wTime ; multipied by 8
-mov r0, -(sp) ; Backing up r0
-mov @pointer, r0
-bic #asciimask, r0
-add r0, wTime
-mov (sp)+, r0
-inc pointer
-cmpb #'0 , @pointer
-ble setBplyr ; jumps if not a number
-cmpb #'9 , @pointer
-bgt setBplyr ; jumps if not a number
-jmp rdWTime
 
 wHuman:
 mov #1, wPlayer
@@ -190,6 +167,87 @@ jmp setwTime
 wPC:
 mov #2, wPlayer
 jmp setwTime
+
+setwTime:
+mov #0, wTime
+inc pointer
+cmpb #' , @pointer
+beq setwTime ; skipping spaces
+cmpb @pointer, #'0
+blt noCom ; jumps if not a number
+cmpb @pointer, #'9
+bgt noCom ; jumps if not a number
+; If we got here it is a number
+rdWTime: ; Read White player time
+asl wTime ; multipied by 2
+asl wTime ; multipied by 4
+asl wTime ; multipied by 8
+mov r0, -(sp) ; Backing up r0
+movb @pointer, r0
+bic #asciimask, r0
+add r0, wTime
+mov (sp)+, r0
+inc pointer
+cmpb @pointer, #'0
+blt setBplyr ; jumps if not a number
+cmpb @pointer, #'9
+bgt setBplyr ; jumps if not a number
+jmp rdWTime
+
+setBplyr:
+inc pointer
+cmpb  #' , @pointer
+beq setBplyr ; skipping spaces
+cmpb @pointer, #'h
+beq bHuman
+cmpb @pointer, #'c
+beq bPC
+jmp noCom
+
+bHuman:
+mov #1, bPlayer
+jmp setbTime
+
+bPC:
+mov #2, bPlayer
+jmp setbTime
+
+setbTime:
+mov #0, bTime
+inc pointer
+cmpb #' , @pointer
+beq setbTime ; skipping spaces
+cmpb @pointer, #'0
+blt noCom ; jumps if not a number
+cmpb  @pointer, #'9
+bgt noCom ; jumps if not a number
+; If we got here it is a number
+rdBTime: ; Read Black player time
+asl bTime ; multipied by 2
+asl bTime ; multipied by 4
+asl bTime ; multipied by 8
+mov r0, -(sp) ; Backing up r0
+movb @pointer, r0
+bic #asciimask, r0
+add r0, bTime
+mov (sp)+, r0
+inc pointer
+cmpb @pointer, #'0
+blt startChk ; jumps if not a number
+cmpb @pointer, #'9
+bgt startChk ; jumps if not a number
+jmp rdBTime
+
+startChk:
+cmpb @pointer, #0
+beq startOK
+jmp noCom
+
+startOK:
+jsr pc, Start
+rti
+
+Start: halt
 
 stopCom: halt
 timeCom: halt
