@@ -20,12 +20,10 @@ tst (sp)+
 mov #command, pointer
 mov #101,@#tks ; keyboard interrupt = 1 && RE = 1
 w:
-cmp pointer, #command
+cmp putDolar, #0
 bne cont
-; Printing $
-mov #dollar, -(sp)
-jsr pc, printStr
-tst (sp)+
+mov #1, putDolar
+jsr pc, printdol ; Printing $ if needed
 cont:
 wait
 jmp w
@@ -68,6 +66,7 @@ mov #command, pointer ; Pointer will point the beginning of the command
 mov (sp)+, r0 ; Restoring r0
 jsr pc, decode ; Decoding the command
 mov #command, pointer ; Pointer will point the beginning of the command
+mov #0, putDolar
 inc @#tks ; RE = 1
 rti
 
@@ -277,7 +276,7 @@ bne jnoCom
 dec pointer
 jmp setbTime
 
-                          jnoCom: jmp noCom
+                  jnoCom: jmp noCom
 
 setbTime:
 mov #0, bTime
@@ -390,31 +389,46 @@ timeCom: halt
 moveCom: halt
 
 
-  ;========================================================================
-  ;                            FUNCTIONS
-  ;========================================================================
+;===============================================================================
+;                                FUNCTIONS
+;===============================================================================
+;-------------------------------------------------------------------------------
+;                                PrintStr
+;-------------------------------------------------------------------------------
+printStr:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl printStr
+cmpb #'\0, @2(sp) ; Check if reached end of string.
+beq sof
+cmpb #'\r, @2(sp) ;Check if reached end of string and needs to print a new line.
+beq newline
+movb @2(sp), @#tpb ;Print char.
+inc 2(sp) ; Move to the next char.
+br printStr
+newline:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl newline
+movb #'\r, @#tpb ;Prints carrige return.
+wx: tstb @#tps ;Busy wait, wait till end of print.
+bpl wx
+movb #'\n, @#tpb ; Prints a new line.
+wz: tstb @#tps ;Busy wait, wait till end of print.
+bpl wz
+sof:
+rts pc
+;-------------------------------------------------------------------------------
 
-  printStr:
-  tstb @#tps ;Busy wait, wait till end of print.
-  bpl printStr
-  cmpb #'\0, @2(sp) ; Check if reached end of string.
-  beq sof
-  cmpb #'\r, @2(sp) ;Check if reached end of string and needs to print a new line.
-  beq newline
-  movb @2(sp), @#tpb ;Print char.
-  inc 2(sp) ; Move to the next char.
-  br printStr
-  newline:
-  tstb @#tps ;Busy wait, wait till end of print.
-  bpl newline
-  movb #'\r, @#tpb ;Prints carrige return.
-  wx: tstb @#tps ;Busy wait, wait till end of print.
-  bpl wx
-  movb #'\n, @#tpb ; Prints a new line.
-  wz: tstb @#tps ;Busy wait, wait till end of print.
-  bpl wz
-  sof:
-  rts pc
+
+;-------------------------------------------------------------------------------
+;                                printdol
+;-------------------------------------------------------------------------------
+printdol:
+; Printing $
+mov #dollar, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;-------------------------------------------------------------------------------
 
 .=torg + 8000
 command: .blkw 25.
@@ -424,6 +438,7 @@ curChar: .byte 1
 gameOn: .word 0
 errorCom: .blkw 25.
 errPtr: .blkw 1
+putDolar: .word 0
 
 
 wPlayer: .byte 0
