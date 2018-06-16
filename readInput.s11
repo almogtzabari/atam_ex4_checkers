@@ -53,11 +53,11 @@ bpl w1
 movb #'\r, @#tpb ; Prints LineFeed.
 w2:tstb @#tps
 bpl w2
-movb #'\r, pointer ; Adds linefeed to the command string.
+movb #0, @pointer ; Adds linefeed to the command string.
 mov #command, pointer ; Pointer will point the beginning of the command
 mov (sp)+, r0 ; Restoring r0
-inc @#tks ; RE = 1
 jsr pc, decode ; Decoding the command
+inc @#tks ; RE = 1
 rti
 
 
@@ -97,14 +97,60 @@ jmp noCom
 sCom:
 inc pointer
 cmpb @pointer, #'t
-beq stCom
-jmp noCom
+bne noCom
+inc pointer
+cmpb @pointer, #'a
+beq staCom
+cmpb @pointer, #'o
+bne noCom
+; If we got here we had the sequence 'sto'
+inc pointer
+cmp @pointer, #'p
+bne noCom
+jmp stopCom
 
-tCom: halt
-mCom: halt
+staCom:
+; If we got here we had the sequence 'sta'
+inc pointer
+cmpb @pointer, #'r
+bne noCom
+inc pointer
+cmpb @pointer, #'t
+bne noCom
+jmp startCom
+
+
+tCom:
+; If we got here we had 't'
+inc pointer
+cmpb @pointer, #'i
+bne noCom
+inc pointer
+cmpb @pointer, #'m
+bne noCom
+inc pointer
+cmpb @pointer, #'e
+bne noCom
+jmp timeCom
+
+mCom:
+; If we got here we had 'm'
+inc pointer
+cmpb @pointer, #'o
+bne noCom
+inc pointer
+cmpb @pointer, #'v
+bne noCom
+inc pointer
+cmpb @pointer, #'e
+bne noCom
+jmp moveCom
 noCom: halt
 
-stCom: halt
+startCom: halt
+stopCom: halt
+timeCom: halt
+moveCom: halt
 
 
 
