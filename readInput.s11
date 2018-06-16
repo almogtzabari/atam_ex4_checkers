@@ -67,6 +67,7 @@ movb #0, @pointer ; Adds linefeed to the command string.
 mov #command, pointer ; Pointer will point the beginning of the command
 mov (sp)+, r0 ; Restoring r0
 jsr pc, decode ; Decoding the command
+mov #command, pointer ; Pointer will point the beginning of the command
 inc @#tks ; RE = 1
 rti
 
@@ -308,10 +309,13 @@ jmp rdBTime
 
 startChk:
 cmpb @pointer, #0
-beq startOK
-jmp noCom
+bne jnoCom
+cmp gameOn, #0
+bne jnoCom
+jmp startOK
 
 startOK:
+mov #1, gameOn
 jsr pc, Start
 rts pc
 
@@ -342,11 +346,43 @@ mov #with, -(sp)
 jsr pc, printStr
 tst (sp)+
 
+;-------------------------------------------------------------------------------
+; todo: enter here code to print number of seconds per move of whiteplayer
+;-------------------------------------------------------------------------------
 
 mov #secpermov, -(sp)
 jsr pc, printStr
 tst (sp)+
 
+mov #bplyris, -(sp)
+jsr pc, printStr
+tst (sp)+
+cmpb bPlayer, #1
+beq bplyrHmn
+; Black player is Computer
+mov #computer, -(sp)
+jsr pc, printStr
+tst (sp)+
+br bplyrtime
+bplyrHmn:
+; Black player is Human
+mov #hmn, -(sp)
+jsr pc, printStr
+tst (sp)+
+br bplyrtime
+
+bplyrtime:
+; Printing time for white player
+mov #with, -(sp)
+jsr pc, printStr
+tst (sp)+
+
+;-------------------------------------------------------------------------------
+; todo: enter here code to print number of seconds per move of blackplayer
+;-------------------------------------------------------------------------------
+mov #secpermov, -(sp)
+jsr pc, printStr
+tst (sp)+
 rts pc ; Return from decode
 
 stopCom: halt
@@ -385,6 +421,7 @@ command: .blkw 25.
 pointer: .blkw 1
 curChar: .byte 1
 .even
+gameOn: .word 0
 errorCom: .blkw 25.
 errPtr: .blkw 1
 
@@ -409,6 +446,7 @@ dollar: .ascii <$ \0>
 welcome:.ascii <Welcome\sto\s312433576\sand\s203438775\scheckers\sgame!\r>
 newgame: .ascii<Starting\sa\snew\sgame\r>
 wplyris: .ascii<White\splayer\sis\s\0>
+bplyris: .ascii<Black\splayer\sis\s\0>
 hmn: .ascii<Human\s\0>
 computer: .ascii<Computer\s\0>
 with: .ascii <with\s\0>
