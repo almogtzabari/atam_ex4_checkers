@@ -25,14 +25,14 @@ w:
   movb @#tkb, curChar
 
   ; Check if we reached the end of the command
-  mov r0, -(sp)
-  mov #command, r0
-  add #50., r0
-  cmp pointer, r0
+  mov r0, -(sp) ; Backing up r0
+  mov #command, r0 ; Moving command string address to r0
+  add #50., r0 ; Adding max length of string to r0.
+  cmp pointer, r0 ; Checks if the command reached 50 chars.
   bgt ignore
   ; We have not reached the end of the command
-  ;cmpb CurChar, #'\r  ; checks if current char is ENTER
-  ;beq newline
+  cmpb curChar, #'\r  ; checks if current char is ENTER
+  beq endOfIpt
   cmpb #'\b, curChar  ; checks if current char is BackSpace
   beq backspace
   ; Current char is a neither ENTER nor BackSpace
@@ -42,9 +42,22 @@ w:
   bpl loop
   ; curChar was printed
   inc pointer
-  mov (sp)+, r0
+  mov (sp)+, r0 ; Restores r0.
   inc @#tks ; RE = 1
   rti
+
+  endOfIpt:
+    movb curChar, @#tks ; Prints Carrige Return/
+    w1:tstb @#tps
+      bpl w1
+      movb #'\r, @#tps ; Prints LineFeed.
+      w2:tstb @#tps
+        bpl w2
+      movb #'\r, pointer ; Adds linefeed to the command string.
+      inc pointer
+
+
+
 
 backspace:
   cmp #command, pointer
@@ -60,14 +73,14 @@ wait1:		tstb @#tps
   wait2:		tstb @#tps
     bpl wait2
     inc @#tks ; RE = 1
-      mov (sp)+, r0 ; Restoring r0
+    mov (sp)+, r0 ; Restoring r0
     rti
   ignore:
   mov (sp)+, r0 ; Restoring r0
   inc @#tks ; RE = 1
   rti
 
-  newline: halt
+endOfIpt:
 
 
 
@@ -79,3 +92,6 @@ wait1:		tstb @#tps
   command: .blkw 25.
   pointer: .blkw 1
   curChar: .byte 1
+
+  .even
+  TIMOUT:.word 1
