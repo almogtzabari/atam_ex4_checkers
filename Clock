@@ -1,0 +1,6 @@
+lcs = 177546
+
+.=torg + 1000
+
+main:
+mov #main, sp
