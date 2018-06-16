@@ -4,21 +4,30 @@ tps = 177564
 tpb = 177566
 asciimask = 177760
 
+.=torg + 60
+.word rInput
+.word 200
+
 .=torg + 1000
 main:
 ; Initializing stack
 mov pc, sp
 tst -(sp)
+mov #welcome, -(sp)
+jsr pc, printStr
+tst (sp)+
 
 mov #command, pointer
-;mov #printc, @#64 ; printer subrotine
-;mov #200,@#66 ; printer priority
-;mov #100, @#tps ; printer interrupt = 1
-
-mov #rInput, @#60 ; keyboard subrotine
-mov #200,@#62 ; keyboard priority
 mov #101,@#tks ; keyboard interrupt = 1 && RE = 1
 w:
+cmp pointer, #command
+bne cont
+; Printing $
+mov #dollar, -(sp)
+jsr pc, printStr
+tst (sp)+
+cont:
+wait
 jmp w
 
 ; Read input
@@ -106,10 +115,7 @@ cmpb @pointer, #'o
 bne noCom
 ; If we got here we had the sequence 'sto'
 inc pointer
-cmp @pointer, #'p
-bne noCom
-inc pointer
-cmpb #' , @pointer
+cmpb @pointer, #'p
 bne noCom
 jmp stopCom
 
@@ -137,9 +143,6 @@ cmpb @pointer, #'m
 bne noCom
 inc pointer
 cmpb @pointer, #'e
-bne noCom
-inc pointer
-cmpb #' , @pointer
 bne noCom
 jmp timeCom
 
@@ -179,11 +182,12 @@ jmp cpyErr
 donecpy:
 movb #'", @errPtr
 inc errPtr
-movb #'\0, @errPtr
+movb #'\r, @errPtr
 mov #errorCom, -(sp)
 jsr pc, printStr
 tst (sp)+
-rti
+mov #command, pointer
+rts pc ; return from decode
 
 startCom:
 inc pointer
@@ -309,14 +313,44 @@ jmp noCom
 
 startOK:
 jsr pc, Start
-rti
+rts pc
 
-Start: halt
+Start:
+mov #newgame, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
 
 stopCom: halt
 timeCom: halt
 moveCom: halt
 
+
+  ;========================================================================
+  ;                            FUNCTIONS
+  ;========================================================================
+
+  printStr:
+  tstb @#tps ;Busy wait, wait till end of print.
+  bpl printStr
+  cmpb #'\0, @2(sp) ; Check if reached end of string.
+  beq sof
+  cmpb #'\r, @2(sp) ;Check if reached end of string and needs to print a new line.
+  beq newline
+  movb @2(sp), @#tpb ;Print char.
+  inc 2(sp) ; Move to the next char.
+  br printStr
+  newline:
+  tstb @#tps ;Busy wait, wait till end of print.
+  bpl newline
+  movb #'\r, @#tpb ;Prints carrige return.
+  wx: tstb @#tps ;Busy wait, wait till end of print.
+  bpl wx
+  movb #'\n, @#tpb ; Prints a new line.
+  wz: tstb @#tps ;Busy wait, wait till end of print.
+  bpl wz
+  sof:
+  rts pc
 
 .=torg + 3000
 command: .blkw 25.
@@ -326,8 +360,7 @@ curChar: .byte 1
 errorCom: .blkw 25.
 errPtr: .blkw 1
 
-.even
-cannot: .ascii <Cannot\sexecute\s"\0>
+
 wPlayer: .byte 0
 .even
 wTime: .word 0
@@ -338,29 +371,14 @@ bTime: .word 0
 .even
 TIMOUT:.word 1
 
-
 ;========================================================================
-;                            FUNCTIONS
+;                            STRINGS
 ;========================================================================
 
-printStr:
-tstb @#tps ;Busy wait, wait till end of print.
-bpl printStr
-cmpb #'\0, @2(sp) ; Check if reached end of string.
-beq sof
-cmpb #'\r, @2(sp) ;Check if reached end of string and needs to print a new line.
-beq newline
-movb @2(sp), @#tpb ;Print char.
-inc 2(sp) ; Move to the next char.
-br printStr
-newline:
-tstb @#tps ;Busy wait, wait till end of print.
-bpl newline
-movb #'\r, @#tpb ;Prints carrige return.
-wx: tstb @#tps ;Busy wait, wait till end of print.
-bpl wx
-movb #'\n, @#tpb ; Prints a new line.
-wz: tstb @#tps ;Busy wait, wait till end of print.
-bpl wz
-sof:
-rts pc
+.even
+cannot: .ascii <Cannot\sexecute\s"\0>
+dollar: .ascii <$ \0>
+welcome:.ascii <Welcome\sto\s312433576\sand\s203438775\scheckers\sgame!\r>
+newgame: .ascii<Starting\sa\snew\sgame\r>
+wplyris: .ascii<White\splayer\sis\s\0>
+hmn: .ascii<Human\s\0>
