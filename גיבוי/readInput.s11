@@ -1,0 +1,79 @@
+tks = 177560
+tkb = 177562
+tps = 177564
+tpb = 177566
+
+.=torg + 1000
+main:
+  ; Initializing stack
+  mov pc, sp
+  tst -(sp)
+
+  mov #command, pointer
+  ;mov #printc, @#64 ; printer subrotine
+  ;mov #200,@#66 ; printer priority
+  ;mov #100, @#tps ; printer interrupt = 1
+
+  mov #rInput, @#60 ; keyboard subrotine
+  mov #200,@#62 ; keyboard priority
+  mov #101,@#tks ; keyboard interrupt = 1 && RE = 1
+w:
+  jmp w
+
+  ; Read input
+  rInput:
+  movb @#tkb, curChar
+
+  ; Check if we reached the end of the command
+  cmpb #'\b, curChar  ; checks if current char is BackSpace
+  beq backspace
+  mov r0, -(sp)
+  mov #command, r0
+  add #51., r0
+  cmp pointer, r0
+  bgt ignore
+  ; We have not reached the end of the command
+  ;cmpb CurChar, #'\r  ; checks if current char is ENTER
+  ;beq newline
+
+  ; Current char is a neither ENTER nor BackSpace
+  movb curChar, @pointer
+  movb curChar, @#tpb ; sending char to print
+  loop: tstb @#tps
+  bpl loop
+  ; curChar was printed
+  inc pointer
+  mov (sp)+, r0
+  inc @#tks ; RE = 1
+  rti
+
+backspace:
+  cmp #command, pointer
+  beq ignore
+  dec pointer
+  movb #'\b, @#tpb
+wait0:		tstb @#tps
+  bpl wait0
+  movb #' , @#tpb
+wait1:		tstb @#tps
+  bpl wait1
+  movb #'\b, @#tpb
+  wait2:		tstb @#tps
+    bpl wait2
+  ignore:
+  mov (sp)+, r0 ; Restoring r0
+  inc @#tks ; RE = 1
+  rti
+
+  newline: halt
+
+
+
+
+
+
+
+  .=torg + 3000
+  command: .blkw 25.
+  pointer: .blkw 1
+  curChar: .byte 1
