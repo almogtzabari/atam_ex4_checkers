@@ -323,16 +323,18 @@ mov #wplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
 cmpb #'h, wPlayer
-beq wHuman
+beq wplyrHmn
 ; White player is computer
 mov #computer, -(sp)
 jsr pc, printStr
 tst (sp)+
-wHuman:
+br wplyrtime
+wplyrHmn:
 ; White player is human
 mov #hmn, -(sp)
 jsr pc, printStr
 tst (sp)+
+br wplyrtime
 
 wplyrtime:
 ; Printing time for white player
@@ -369,7 +371,7 @@ moveCom: halt
   sof:
   rts pc
 
-.=torg + 3000
+.=torg + 8000
 command: .blkw 25.
 pointer: .blkw 1
 curChar: .byte 1
