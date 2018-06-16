@@ -322,21 +322,15 @@ Start:
 mov #newgame, -(sp)
 jsr pc, printStr
 tst (sp)+
-mov #wplyris, -(sp)
-jsr pc, printStr
-tst (sp)+
+jsr pc, printWPI ; Printing "White player is "
 cmpb #1, wPlayer
 beq wplyrHmn
 ; White player is computer
-mov #computer, -(sp)
-jsr pc, printStr
-tst (sp)+
+jsr pc, printPC ; Printing "Computer "
 br wplyrtime
 wplyrHmn:
 ; White player is human
-mov #hmn, -(sp)
-jsr pc, printStr
-tst (sp)+
+jsr pc, printHmn ; Printing "Human "
 br wplyrtime
 
 wplyrtime:
@@ -349,25 +343,18 @@ tst (sp)+
 ; todo: enter here code to print number of seconds per move of whiteplayer
 ;-------------------------------------------------------------------------------
 
-mov #secpermov, -(sp)
-jsr pc, printStr
-tst (sp)+
+jsr pc, printSPM ; Printing "seconds per move\r"
 
-mov #bplyris, -(sp)
-jsr pc, printStr
-tst (sp)+
+
+jsr pc, printBPI ; Printing "Black player is "
 cmpb bPlayer, #1
 beq bplyrHmn
 ; Black player is Computer
-mov #computer, -(sp)
-jsr pc, printStr
-tst (sp)+
+jsr pc, printPC ; Printing "Computer "
 br bplyrtime
 bplyrHmn:
 ; Black player is Human
-mov #hmn, -(sp)
-jsr pc, printStr
-tst (sp)+
+jsr pc, printHmn ; Printing "Human "
 br bplyrtime
 
 bplyrtime:
@@ -379,9 +366,7 @@ tst (sp)+
 ;-------------------------------------------------------------------------------
 ; todo: enter here code to print number of seconds per move of blackplayer
 ;-------------------------------------------------------------------------------
-mov #secpermov, -(sp)
-jsr pc, printStr
-tst (sp)+
+jsr pc, printSPM ; Printing "seconds per move\r"
 rts pc ; Return from decode
 
 stopCom: halt
@@ -392,6 +377,7 @@ moveCom: halt
 ;===============================================================================
 ;                                FUNCTIONS
 ;===============================================================================
+
 ;-------------------------------------------------------------------------------
 ;                                PrintStr
 ;-------------------------------------------------------------------------------
@@ -423,12 +409,71 @@ rts pc
 ;                                printdol
 ;-------------------------------------------------------------------------------
 printdol:
-; Printing $
+; Printing "$"
 mov #dollar, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
 ;-------------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;                                printHmn
+;-------------------------------------------------------------------------------
+printHmn:
+; Printing "Human "
+mov #hmn, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;-------------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;                                printPC
+;-------------------------------------------------------------------------------
+printPC:
+; Printing "Computer "
+mov #computer, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;-------------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;                                printSPM
+;-------------------------------------------------------------------------------
+printSPM:
+; Printing "seconds per move\r"
+mov #secpermov, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;-------------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;                                printBPI
+;-------------------------------------------------------------------------------
+printBPI:
+; Printing "Black player is "
+mov #bplyris, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;-------------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;                                printWPI
+;-------------------------------------------------------------------------------
+printWPI:
+; Printing "White player is "
+mov #wplyris, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;-------------------------------------------------------------------------------
+
+;==============================================================================
+;                             END OF FUNCTIONS
+;==============================================================================
 
 .=torg + 8000
 command: .blkw 25.
