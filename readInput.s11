@@ -16,7 +16,7 @@ tst -(sp)
 mov #welcome, -(sp)
 jsr pc, printStr
 tst (sp)+
-
+jsr pc, printNL ; Printing new line
 mov #command, pointer
 mov #101,@#tks ; keyboard interrupt = 1 && RE = 1
 w:
@@ -162,6 +162,7 @@ jmp moveCom
 ;-------------------------------------------------------------------------------
 noCom:
 ; Prints cannot execute..
+jsr pc, printNL ; Printing new line
 mov #cannot, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -185,6 +186,7 @@ mov #errorCom, -(sp)
 jsr pc, printStr
 tst (sp)+
 mov #command, pointer
+jsr pc, printNL ; Printing new line
 rts pc ; return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -323,6 +325,7 @@ jmp startOK
 startOK:
 mov #1, gameOn
 jsr pc, Start
+
 rts pc ; Return from decode
 
 Start:
@@ -374,6 +377,8 @@ jsr pc, printSPM ; Printing "seconds per move\r"
 
 jsr pc, initBoard ; Initializing the board
 jsr pc, printB ; Printing the board
+jsr pc, printWCP ; Printing white current player
+jsr pc, printNL ; Printing new line
 
 rts pc ; Return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -642,6 +647,32 @@ mov source, -(sp)
 mov dest, -(sp)
 jsr pc, movPiece
 add #4, sp ;Popping source and dest.
+jsr pc, printNL ; Printing new line
+
+cmp turn, #1
+beq whitMv
+; Black Player Turn
+jsr pc, printBLK ; Printing: 'Black '
+jmp zibby
+
+whitMv:
+
+jsr pc, printWHT
+zibby:
+jsr pc, printHmn ; Printing: 'Human '
+jsr pc, printMT ; Printing: 'move took '
+
+;-------------------------------------------------------------------------------
+; todo: print how much time did it take from human to make a move
+;-------------------------------------------------------------------------------
+mov #secStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #dotStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+jsr pc, printB
+jsr pc, chgTurn
 rts pc
 
 badIdx:
@@ -814,6 +845,28 @@ rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
+;                                printWHT
+;-------------------------------------------------------------------------------
+printWHT:
+; Printing: "White "
+mov #Wht, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                                printBLK
+;-------------------------------------------------------------------------------
+printBLK:
+; Printing: "White "
+mov #Blk, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
 ;                                printWPT
 ;-------------------------------------------------------------------------------
 printWPT:
@@ -836,6 +889,20 @@ rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
+;                                printMT
+;-------------------------------------------------------------------------------
+printMT:
+; Printing: 'move took '
+mov #movStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #tookStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
 ;                                printBL
 ;-------------------------------------------------------------------------------
 printBL:
@@ -843,6 +910,75 @@ printBL:
 mov #boardlay, -(sp)
 jsr pc, printStr
 tst (sp)+
+jsr pc, printNL ; Printing new line
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                                chgTurn
+;-------------------------------------------------------------------------------
+chgTurn:
+; Changing turn
+mov r0, -(sp)
+mov #3, r0
+sub turn, r0
+mov r0, turn
+mov (sp)+, r0
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                                printWCP
+;-------------------------------------------------------------------------------
+printWCP:
+; Printing: 'Current Player: White'
+mov #CPStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #Wht, -(sp)
+jsr pc, printStr
+tst (sp)+
+cmp #1, wPlayer
+beq whitpl
+; White Player is computer
+mov #computer, -(sp)
+jsr pc, printStr
+tst (sp)+
+jmp endWCP
+whitpl:
+; White player is Human
+mov #hmn, -(sp)
+jsr pc, printStr
+tst (sp)+
+endWCP:
+jsr pc, printNL ; Printing new line
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                                printBCP
+;-------------------------------------------------------------------------------
+printBCP:
+; Printing: 'Current Player: White'
+mov #CPStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #Blk, -(sp)
+jsr pc, printStr
+tst (sp)+
+cmp #1, wPlayer
+beq blkpl
+; White Player is computer
+mov #computer, -(sp)
+jsr pc, printStr
+tst (sp)+
+jmp endBCP
+blkpl:
+; White player is Human
+mov #hmn, -(sp)
+jsr pc, printStr
+tst (sp)+
+endBCP:
 jsr pc, printNL ; Printing new line
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1006,6 +1142,13 @@ with: .ascii <with\s\0>
 secpermov: .ascii< seconds\sper\smove\r>
 boardlay: .ascii<Board layout:\r>
 nlfeed: .ascii<\r>
+CPStr: .ascii <Current\sPlayer:\s\0>
+Blk: .ascii <Black\s\0>
+Wht: .ascii <White\s\0>
+movStr: .ascii <move\s\0>
+tookStr: .ascii <took\s\0>
+secStr: .ascii <seconds\0>
+dotStr: .ascii <.\r>
 
 .even
 Board:.word	0,	0,	0,	2,	0,	0,	0,	2
