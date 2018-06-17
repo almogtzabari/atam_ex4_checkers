@@ -55,12 +55,7 @@ inc @#tks ; RE = 1
 rti
 
 endOfIpt:
-movb #'\n, @#tpb ; Prints Carrige Return/
-w1:tstb @#tps
-bpl w1
-movb #'\r, @#tpb ; Prints LineFeed.
-w2:tstb @#tps
-bpl w2
+jsr pc, printNL ; Printing new line
 movb #0, @pointer ; Adds linefeed to the command string.
 mov #command, pointer ; Pointer will point the beginning of the command
 mov (sp)+, r0 ; Restoring r0
@@ -377,9 +372,8 @@ jsr pc, printBPT ; print Black Player Time
 jsr pc, printSPM ; Printing "seconds per move\r"
 
 
-;-------------------------------------------------------------------------------
-; todo: enter here code to initialize the board and print it
-;-------------------------------------------------------------------------------
+jsr pc, initBoard ; Initializing the board
+jsr pc, printB ; Printing the board
 
 rts pc ; Return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -415,7 +409,7 @@ rts pc
 moveCom:
 ; The command is 'move'
 cmp gameOn, #0
-beq jnoCom
+beq jnoCom1
 cmpb  #' , @pointer
 bne continue
 inc pointer ; Skipping spaces.
@@ -831,6 +825,29 @@ rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
+;                                printNL
+;-------------------------------------------------------------------------------
+printNL:
+; Printing new line
+mov #nlfeed, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                                printBL
+;-------------------------------------------------------------------------------
+printBL:
+; Printing 'Board layout:\r'
+mov #boardlay, -(sp)
+jsr pc, printStr
+tst (sp)+
+jsr pc, printNL ; Printing new line
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
 ;                                RstBWStr
 ;-------------------------------------------------------------------------------
 RstBWStr:
@@ -850,6 +867,91 @@ bne loopRst
 mov #bTimeStr, bTimePtr
 mov #wTimeStr, wTimePtr
 mov (sp)+, r0 ; Restoring r0
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                                printB
+;-------------------------------------------------------------------------------
+printB:
+; Printing board
+jsr pc, printNL ; Printing new line
+jsr pc, printNL ; Printing new line
+jsr pc, printNL ; Printing new line
+jsr pc, printBL ; Printing 'Board layout:\r'
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
+mov r2, -(sp) ; Backing up r2.
+mov #8., r2
+mov #Board, r1
+add #128., r1
+mov #Board, r0
+Ploop:
+cmp r0, r1
+beq endP
+tst r2 ; R2 will be initialized with 8 (number of words to print per row).
+bne conP
+mov #8., r2
+jsr pc, printNL ; Printing new line
+conP:
+cmp (r0), #0 ;Check if we need to print _.
+beq print_
+cmp (r0), #1 ;Check if we need to print W.
+beq printWH
+tst (r0) ; Move to the next word.
+movb #'B, @#tpb
+pwait:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl pwait
+add #2, r0
+dec r2
+br Ploop
+printWH:
+movb #'W, @#tpb
+p1wait:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl p1wait
+add #2, r0
+dec r2
+br Ploop
+print_:
+movb #'_, @#tpb
+p2wait:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl p2wait
+add #2, r0
+dec r2
+br Ploop
+endP:
+jsr pc, printNL ; Printing new line
+jsr pc, printNL ; Printing new line
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                                initBoard
+;-------------------------------------------------------------------------------
+
+initBoard:
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
+mov r2, -(sp) ; Backing up r2.
+mov #Board, r1
+add #128., r1
+mov #Board, r0
+mov #NewBoard, r2
+Cpyloop:
+cmp r0, r1
+beq endCpy
+mov (r2)+, (r0)+
+br Cpyloop
+endCpy:
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -902,6 +1004,8 @@ hmn: .ascii<Human\s\0>
 computer: .ascii<Computer\s\0>
 with: .ascii <with\s\0>
 secpermov: .ascii< seconds\sper\smove\r>
+boardlay: .ascii<Board layout:\r>
+nlfeed: .ascii<\r>
 
 .even
 Board:.word	0,	0,	0,	2,	0,	0,	0,	2
@@ -912,3 +1016,13 @@ Board:.word	0,	0,	0,	2,	0,	0,	0,	2
 			.word	1,	0,	1,	0,	1,	0,	1,	0
 			.word	0,	1,	0,	1,	0,	1,	0,	1
 			.word	1,	0,	1,	0,	1,	0,	1,	0
+
+NewBoard:
+  .word	0,	2,	0,	2,	0,	2,	0,	2
+	.word	2,	0,	2,	0,	2,	0,	2,	0
+	.word	0,	2,	0,	2,	0,	2,	0,	2
+	.word	0,	0,	0,	0,	0,	0,	0,	0
+	.word	0,	0,	0,	0,	0,	0,	0,	0
+	.word	1,	0,	1,	0,	1,	0,	1,	0
+	.word	0,	1,	0,	1,	0,	1,	0,	1
+	.word	1,	0,	1,	0,	1,	0,	1,	0
