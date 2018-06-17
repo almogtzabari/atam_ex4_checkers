@@ -162,6 +162,9 @@ cmpb #' , @pointer
 bne noCom
 jmp moveCom
 
+;-------------------------------------------------------------------------------
+;                           Illegal command
+;-------------------------------------------------------------------------------
 noCom:
 ; Prints cannot execute..
 mov #cannot, -(sp)
@@ -188,7 +191,11 @@ jsr pc, printStr
 tst (sp)+
 mov #command, pointer
 rts pc ; return from decode
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;-------------------------------------------------------------------------------
+;                           Command is 'start'
+;-------------------------------------------------------------------------------
 startCom:
 inc pointer
 cmpb  #' , @pointer
@@ -227,6 +234,7 @@ cmpb @pointer, #'0
 blt noCom ; jumps if not a number
 cmpb @pointer, #'9
 bgt noCom ; jumps if not a number
+jsr pc, RstBWStr ; Reseting values of wTimeStr and bTimeStr
 ; If we got here it is a number
 rdWTime: ; Read White player time
 mov r1, -(sp) ; Backing up r1
@@ -235,6 +243,8 @@ mul #10., r1
 mov r1, wTime
 mov (sp)+, r1
 mov r0, -(sp) ; Backing up r0
+movb @pointer, @wTimePtr ; copy ascii number to a string (will be printed later)
+inc wTimePtr
 movb @pointer, r0
 bic #asciimask, r0
 add r0, wTime
@@ -295,6 +305,8 @@ mul #10., r1
 mov r1, bTime
 mov (sp)+, r1
 mov r0, -(sp) ; Backing up r0
+movb @pointer, @bTimePtr ; copy ascii number to a string (will be printed later)
+inc bTimePtr
 movb @pointer, r0
 bic #asciimask, r0
 add r0, bTime
@@ -339,9 +351,7 @@ mov #with, -(sp)
 jsr pc, printStr
 tst (sp)+
 
-;-------------------------------------------------------------------------------
-; todo: enter here code to print number of seconds per move of whiteplayer
-;-------------------------------------------------------------------------------
+jsr pc, printWPT ; print White Player Time
 
 jsr pc, printSPM ; Printing "seconds per move\r"
 
@@ -363,20 +373,47 @@ mov #with, -(sp)
 jsr pc, printStr
 tst (sp)+
 
-;-------------------------------------------------------------------------------
-; todo: enter here code to print number of seconds per move of blackplayer
-;-------------------------------------------------------------------------------
+jsr pc, printBPT ; print Black Player Time
 jsr pc, printSPM ; Printing "seconds per move\r"
+
 
 ;-------------------------------------------------------------------------------
 ; todo: enter here code to initialize the board and print it
 ;-------------------------------------------------------------------------------
 
 rts pc ; Return from decode
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-stopCom: halt
-timeCom: halt
+                            jnoCom1: jmp noCom
+
+;-------------------------------------------------------------------------------
+;                           Command is 'stop'
+;-------------------------------------------------------------------------------
+stopCom:
+mov #0, gameOn ; Stopping the game
+;-------------------------------------------------------------------------------
+; todo: enter here code to print relevant data of the end game
+;-------------------------------------------------------------------------------
+rts pc ; Return from decode
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                           Command is 'time'
+;-------------------------------------------------------------------------------
+timeCom:
+
+;-------------------------------------------------------------------------------
+; todo: enter here code to print time left of the turn
+;-------------------------------------------------------------------------------
+
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                           Command is 'move'
+;-------------------------------------------------------------------------------
 moveCom:
+; The command is 'move'
 cmp gameOn, #0
 beq jnoCom
 cmpb  #' , @pointer
@@ -385,9 +422,9 @@ inc pointer ; Skipping spaces.
 br moveCom
 continue:
 cmpb @pointer, #'0
-blt jnoCom
+blt jnoCom1
 cmpb  @pointer, #'7
-bgt jnoCom
+bgt jnoCom1
 mov r0, -(sp)  ; Backing up r0.
 mov r1, -(sp)  ; Backing up r1.
 mov r2, -(sp)  ; Backing up r2.
@@ -621,7 +658,7 @@ mov (sp)+, r2
 mov (sp)+, r1
 mov (sp)+, r0
 jmp noCom
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;===============================================================================
 ;                                FUNCTIONS
@@ -676,6 +713,8 @@ mov (sp)+, r0 ; Restoring value of r0.
 mov (sp)+, r3 ; Restoring value of r4.
 mov (sp)+, r1 ; Restoring value of r3.
 rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;-------------------------------------------------------------------------------
 ;                                PrintStr
 ;-------------------------------------------------------------------------------
@@ -700,7 +739,7 @@ wz: tstb @#tps ;Busy wait, wait till end of print.
 bpl wz
 sof:
 rts pc
-;-------------------------------------------------------------------------------
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 ;-------------------------------------------------------------------------------
@@ -712,7 +751,7 @@ mov #dollar, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
-;-------------------------------------------------------------------------------
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
 ;                                printHmn
@@ -723,7 +762,7 @@ mov #hmn, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
-;-------------------------------------------------------------------------------
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
 ;                                printPC
@@ -734,18 +773,18 @@ mov #computer, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
-;-------------------------------------------------------------------------------
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
 ;                                printSPM
 ;-------------------------------------------------------------------------------
 printSPM:
-; Printing "seconds per move\r"
+; Printing " seconds per move\r"
 mov #secpermov, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
-;-------------------------------------------------------------------------------
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
 ;                                printBPI
@@ -756,7 +795,7 @@ mov #bplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
-;-------------------------------------------------------------------------------
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
 ;                                printWPI
@@ -767,7 +806,52 @@ mov #wplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;-------------------------------------------------------------------------------
+;                                printBPT
+;-------------------------------------------------------------------------------
+printBPT:
+; Printing how much time the black player has to move
+mov #bTimeStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                                printWPT
+;-------------------------------------------------------------------------------
+printWPT:
+; Printing how much time the black player has to move
+mov #wTimeStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
+;                                RstBWStr
+;-------------------------------------------------------------------------------
+RstBWStr:
+; Resets values of bTimeStr and wTimeStr
+mov r0, -(sp) ; Backing up r0
+mov #25., r0
+mov #bTimeStr, bTimePtr
+mov #wTimeStr, wTimePtr
+loopRst:
+mov #0, @bTimePtr
+add #2, bTimePtr
+mov #0, @wTimePtr
+add #2, wTimePtr
+sub #1, r0
+cmp r0, #0
+bne loopRst
+mov #bTimeStr, bTimePtr
+mov #wTimeStr, wTimePtr
+mov (sp)+, r0 ; Restoring r0
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;==============================================================================
 ;                             END OF FUNCTIONS
@@ -792,9 +876,13 @@ dest: .word 0
 wPlayer: .byte 0
 .even
 wTime: .word 0
+wTimeStr: .blkw 25.
+wTimePtr: .word 0
 bPlayer: .byte 0
 .even
 bTime: .word 0
+bTimeStr: .blkw 25.
+bTimePtr: .word 0
 
 .even
 TIMOUT:.word 1
@@ -813,8 +901,9 @@ bplyris: .ascii<Black\splayer\sis\s\0>
 hmn: .ascii<Human\s\0>
 computer: .ascii<Computer\s\0>
 with: .ascii <with\s\0>
-secpermov: .ascii<seconds\sper\smove\r>
+secpermov: .ascii< seconds\sper\smove\r>
 
+.even
 Board:.word	0,	0,	0,	2,	0,	0,	0,	2
 			.word	0,	0,	2,	0,	2,	0,	2,	0
 			.word	0,	1,	0,	1,	0,	2,	0,	1
