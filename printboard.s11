@@ -1,0 +1,78 @@
+tpb = 177566
+tps = 177564
+.=torg + 1000
+main:
+  jsr pc, printB
+  halt
+
+
+
+;-------------------------------------------------------------------------------
+;                                printBoard
+;-------------------------------------------------------------------------------
+printB:
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
+mov r2, -(sp) ; Backing up r2.
+mov #8., r2
+mov #Board, r1
+add #128., r1
+mov #Board, r0
+Ploop:
+cmp r0, r1
+beq endP
+tst r2 ; R2 will be initialized with 8 (number of words to print per row).
+bne conP
+mov #8., r2
+movb #'\r, @#tpb ;Prints carrige return.
+wx1: tstb @#tps ;Busy wait, wait till end of print.
+bpl wx1
+movb #'\n, @#tpb ; Prints a new line.
+wz1: tstb @#tps ;Busy wait, wait till end of print.
+bpl wz1
+conP:
+cmp (r0), #0 ;Check if we need to print _.
+beq print_
+cmp (r0), #1 ;Check if we need to print W.
+beq printWH
+tst (r0) ; Move to the next word.
+movb #'B, @#tpb
+pwait:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl pwait
+add #2, r0
+dec r2
+br Ploop
+printWH:
+movb #'W, @#tpb
+p1wait:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl p1wait
+add #2, r0
+dec r2
+br Ploop
+print_:
+movb #'_, @#tpb
+p2wait:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl p2wait
+add #2, r0
+dec r2
+br Ploop
+endP:
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+rts pc
+
+
+
+NewBoard:
+  .word	0,	2,	0,	2,	0,	2,	0,	2
+	.word	2,	0,	2,	0,	2,	0,	2,	0
+	.word	0,	2,	0,	2,	0,	2,	0,	2
+	.word	0,	0,	0,	0,	0,	0,	0,	0
+	.word	0,	0,	0,	0,	0,	0,	0,	0
+	.word	1,	0,	1,	0,	1,	0,	1,	0
+	.word	0,	1,	0,	1,	0,	1,	0,	1
+	.word	1,	0,	1,	0,	1,	0,	1,	0

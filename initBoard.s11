@@ -1,0 +1,52 @@
+
+.=torg + 1000
+main:
+  jsr pc, initBoard
+  halt
+
+
+;-------------------------------------------------------------------------------
+;                                initBoard
+;-------------------------------------------------------------------------------
+
+initBoard:
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
+mov r2, -(sp) ; Backing up r2.
+mov #Board, r1
+add #128., r1
+mov #Board, r0
+mov #NewBoard, r2
+Cpyloop:
+cmp r0, r1
+beq endCpy
+mov (r2)+, (r0)+
+br Cpyloop
+endCpy:
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+rts pc
+
+
+Board:
+.word	0,	2,	0,	2,	0,	2,	0,	2
+.word	2,	0,	2,	0,	2,	0,	2,	0
+.word	0,	2,	0,	2,	0,	2,	0,	2
+.word	0,	0,	0,	0,	0,	0,	0,	0
+.word	0,	0,	0,	0,	0,	0,	0,	0
+.word	1,	0,	1,	0,	1,	0,	1,	0
+.word	0,	1,	0,	1,	0,	1,	0,	1
+.word	1,	0,	1,	0,	1,	0,	1,	0
+
+
+
+NewBoard:
+.word	0,	2,	0,	2,	0,	2,	0,	2
+.word	2,	0,	2,	0,	2,	0,	2,	0
+.word	0,	2,	0,	2,	0,	2,	0,	2
+.word	0,	0,	0,	0,	0,	0,	0,	0
+.word	0,	0,	0,	0,	0,	0,	0,	0
+.word	1,	0,	1,	0,	1,	0,	1,	0
+.word	0,	1,	0,	1,	0,	1,	0,	1
+.word	1,	0,	1,	0,	1,	0,	1,	0
