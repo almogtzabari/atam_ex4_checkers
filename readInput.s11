@@ -194,7 +194,7 @@ inc pointer
 cmpb  #' , @pointer
 beq startCom ; skipping spaces
 ; Spaces skipped
-setWplyr:
+setWplyr: ; Set white player
 cmpb @pointer, #'h
 beq wHuman
 cmpb @pointer, #'c
@@ -219,7 +219,7 @@ dec pointer
 jmp setwTime
 
 setwTime:
-mov #0, wTime
+mov #0, wTime ; White Time
 inc pointer
 cmpb #' , @pointer
 beq setwTime ; skipping spaces
@@ -241,12 +241,12 @@ add r0, wTime
 mov (sp)+, r0
 inc pointer
 cmpb #' , @pointer
-beq setBplyr
+beq setBplyr ; Set Black Player
 cmpb @pointer, #'0
 blt jnoCom ; jumps if not a number
 cmpb @pointer, #'9
 bgt jnoCom ; jumps if not a number
-jmp rdWTime
+jmp rdWTime ; Read White Time
 
 setBplyr:
 inc pointer
@@ -265,7 +265,7 @@ inc pointer
 cmpb #' , @pointer
 bne jnoCom
 dec pointer
-jmp setbTime
+jmp setbTime ; Set Black Time
 
 bPC:
 mov #2, bPlayer
@@ -274,7 +274,7 @@ inc pointer
 cmpb #' , @pointer
 bne jnoCom
 dec pointer
-jmp setbTime
+jmp setbTime ; Set Black Time
 
                   jnoCom: jmp noCom
 
@@ -304,7 +304,7 @@ cmpb @pointer, #'0
 blt startChk ; jumps if not a number
 cmpb @pointer, #'9
 bgt startChk ; jumps if not a number
-jmp rdBTime
+jmp rdBTime ; Read Black Time
 
 startChk:
 cmpb @pointer, #0
@@ -316,7 +316,7 @@ jmp startOK
 startOK:
 mov #1, gameOn
 jsr pc, Start
-rts pc
+rts pc ; Return from decode
 
 Start:
 mov #newgame, -(sp)
@@ -324,10 +324,10 @@ jsr pc, printStr
 tst (sp)+
 jsr pc, printWPI ; Printing "White player is "
 cmpb #1, wPlayer
-beq wplyrHmn
+beq wplyrHmn ; White Player Human
 ; White player is computer
 jsr pc, printPC ; Printing "Computer "
-br wplyrtime
+br wplyrtime ; White Player Time
 wplyrHmn:
 ; White player is human
 jsr pc, printHmn ; Printing "Human "
@@ -348,7 +348,7 @@ jsr pc, printSPM ; Printing "seconds per move\r"
 
 jsr pc, printBPI ; Printing "Black player is "
 cmpb bPlayer, #1
-beq bplyrHmn
+beq bplyrHmn ; Black Player Human
 ; Black player is Computer
 jsr pc, printPC ; Printing "Computer "
 br bplyrtime
@@ -367,13 +367,18 @@ tst (sp)+
 ; todo: enter here code to print number of seconds per move of blackplayer
 ;-------------------------------------------------------------------------------
 jsr pc, printSPM ; Printing "seconds per move\r"
+
+;-------------------------------------------------------------------------------
+; todo: enter here code to initialize the board and print it
+;-------------------------------------------------------------------------------
+
 rts pc ; Return from decode
 
 stopCom: halt
 timeCom: halt
 moveCom:
 cmp gameOn, #0
-bne jnoCom
+beq jnoCom
 cmpb  #' , @pointer
 bne continue
 inc pointer ; Skipping spaces.
@@ -393,7 +398,7 @@ clr r1
 movb @pointer, r0
 bic #asciimask, r0
 mov r0, r2 ; r2 will be used for row index.
-add r0, r1
+mov r0, r1
 asl r1
 asl r1
 asl r1
@@ -443,7 +448,7 @@ mov r1, dest ;dest will now hold desteation board adress.
 cmp dest, source
 beq badIdxj ; Checks if source == dest.
 cmp #1, turn
-bne bIdxChk
+bne bIdxChk ; Black index Check
 ;Checking if the desteation adress is legal for white player.
 cmp source, dest
 blt badIdxj ; If source<dest white is trying to move down instead of up.
@@ -578,6 +583,7 @@ jmp badIdxj ;No more moving options.
 
 badIdxju:
 jmp badIdx
+
 eatrbmv:
 sub #1, r5 ; Reducing column index by 1.
 cmp r5, #0
@@ -605,7 +611,7 @@ mov source, -(sp)
 mov dest, -(sp)
 jsr pc, movPiece
 add #4, sp ;Popping source and dest.
-rti
+rts pc
 
 badIdx:
 mov (sp)+, r5
@@ -627,7 +633,7 @@ jmp noCom
 ; position.
 ;
 ; Input:
-; 1. Destanation position - will be stored at 2(sp).
+; 1. Destination position - will be stored at 2(sp).
 ; 2. Source position - will be stored at 4(sp).
 
 movPiece:
