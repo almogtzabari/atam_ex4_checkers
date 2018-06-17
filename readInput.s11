@@ -324,6 +324,7 @@ jmp startOK
 
 startOK:
 mov #1, gameOn
+jsr pc, printNL ; Printing new line
 jsr pc, Start
 
 rts pc ; Return from decode
@@ -332,6 +333,7 @@ Start:
 mov #newgame, -(sp)
 jsr pc, printStr
 tst (sp)+
+jsr pc, printNL ; Printing new line
 jsr pc, printWPI ; Printing "White player is "
 cmpb #1, wPlayer
 beq wplyrHmn ; White Player Human
@@ -352,6 +354,7 @@ tst (sp)+
 jsr pc, printWPT ; print White Player Time
 
 jsr pc, printSPM ; Printing "seconds per move\r"
+jsr pc, printNL ; Printing new line
 
 
 jsr pc, printBPI ; Printing "Black player is "
@@ -373,6 +376,7 @@ tst (sp)+
 
 jsr pc, printBPT ; print Black Player Time
 jsr pc, printSPM ; Printing "seconds per move\r"
+jsr pc, printNL ; Printing new line
 
 
 jsr pc, initBoard ; Initializing the board
