@@ -8,6 +8,10 @@ asciimask = 177760
 .word rInput
 .word 200
 
+.=torg + 100
+.word clock
+.word 300
+
 .=torg + 1000
 main:
 ; Initializing stack
