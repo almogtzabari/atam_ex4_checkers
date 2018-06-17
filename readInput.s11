@@ -371,13 +371,305 @@ rts pc ; Return from decode
 
 stopCom: halt
 timeCom: halt
-moveCom: halt
+moveCom:
+cmp gameOn, #0
+bne jnoCom
+cmpb  #' , @pointer
+bne continue
+inc pointer ; Skipping spaces.
+br moveCom
+continue:
+cmpb @pointer, #'0
+blt jnoCom
+cmpb  @pointer, #'7
+bgt jnoCom
+mov r0, -(sp)  ; Backing up r0.
+mov r1, -(sp)  ; Backing up r1.
+mov r2, -(sp)  ; Backing up r2.
+mov r3, -(sp)  ; Backing up r3.
+mov r4, -(sp)  ; Backing up r4.
+mov r5, -(sp)  ; Backing up r5.
+clr r1
+movb @pointer, r0
+bic #asciimask, r0
+mov r0, r2 ; r2 will be used for row index.
+add r0, r1
+asl r1
+asl r1
+asl r1
+inc pointer ;Get next index character.
+cmpb @pointer, #'0
+blt badIdxj
+cmpb  @pointer, #'7
+bgt badIdxj
+movb @pointer, r0
+bic #asciimask, r0
+mov r0, r3 ; r3 will be used for column index.
+add r0, r1
+mul #2, r1 ;Multiplying by 2 (each word is 2 bytes).
+add #Board, r1
+mov r1, source ; source will hold source board adress.
+cmp (r1), turn ;Checks if a piece of the current player is found in the given index.
+bne badIdxj
+inc pointer
+skip:
+cmpb  #' , @pointer
+bne cont2
+inc pointer ; Skipping spaces.
+br skip
+cont2:
+cmpb @pointer, #'0
+blt badIdxj
+cmpb  @pointer, #'7
+bgt badIdxj
+clr r1
+movb @pointer, r0
+bic #asciimask, r0
+add r0, r1
+asl r1
+asl r1
+asl r1
+inc pointer ;Get next index character.
+cmpb @pointer, #'0
+blt badIdxj
+cmpb @pointer, #'7
+bgt badIdxj
+movb @pointer, r0
+bic #asciimask, r0
+add r0, r1
+mul #2, r1 ;Multiplying by 2 (each word is 2 bytes).
+add #Board, r1
+mov r1, dest ;dest will now hold desteation board adress.
+cmp dest, source
+beq badIdxj ; Checks if source == dest.
+cmp #1, turn
+bne bIdxChk
+;Checking if the desteation adress is legal for white player.
+cmp source, dest
+blt badIdxj ; If source<dest white is trying to move down instead of up.
+mov r2, r4 ;Using r4 as temporary row index.
+sub #1, r4 ; Reducing row index by 1.
+cmp r4, #0
+blt badIdxj ; If row index is less than 0, cannot move left or right.
+mov r3, r5 ;Using r5 as temporary column index.
+add #1, r5 ; Increasing column index by 1.
+cmp r5, #7
+bgt LeftWmv ; If column index is bigger than 7, the current piece cannot move right.
+; If we got here the desteation index can be the upper right cell.
+mov source, r1
+cmp -14.(r1), #1 ; Checking if the upper right piece is white.
+beq LeftWmv ; If the upper right piece is white, cannot go there, check legal moves to the left.
+cmp -14.(r1), #2 ; Checking if the upper right piece is black.
+beq eatrwmv ; If the upper right piece is black, check if the white piece can eat it.
+; If we got here we need to check if the desteation adress equals to the left right cell adress.
+sub #14., r1
+cmp r1, dest
+beq destFj
+jmp LeftWmv ; Keep on checking legal moves to the left (cannot eat so we don't need to check an eating option).
+
+badIdxj:
+  jmp badIdx
+
+destFj:
+  jmp destFound
+
+eatrwmv:
+sub #1, r4 ; Reducing row index by 1.
+cmp r4, #0
+blt LeftWmv ; If r4 is less than 0, cannot eat (out of bounds). Check legal moves to the left.
+add #1, r5 ;Increasing column index by 1.
+cmp r5, #7
+bgt LeftWmv ; If column index is bigger than 7, cannot eat (out of bounds). Check legal moves to the left.
+;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, we need to check if it is empty.
+mov source, r1
+cmp -28.(r1), #0 ; Checking if the cell is empty.
+bne LeftWmv ; If the cell is not empty, cannot eat. Check legal moves to the left.
+; If we got here we need to check if dest == upper right cell (after eating).
+sub #28., r1
+cmp dest, r1
+beq destFj
+
+LeftWmv:
+mov r2, r4 ; Putting index of the current row in r4.
+sub #1, r4 ; Reducing row index by 1.
+mov r3, r5 ; Putting index of the current column in r5.
+sub #1, r5 ; Reducing column index by 1.
+cmp r5, #0
+blt badIdxj ; If column index is less than 0, cannot move right, dest is not a legal cell adress.
+mov source, r1
+cmp -18.(r1), #1 ; Checking if the upper left piece is white.
+beq badIdxj ; If the upper left piece is white, cannot move there, dest is not a legal cell adress.
+cmp -18.(r1), #2 ; Checking if the upper left piece is black.
+beq eatlwmv ; If the upper left piece is black, Check if the white piece can eat it.
+sub #18., r1
+cmp dest, r1
+beq destFj
+jmp badIdxj ; If we got here there are no more moves to check and desteation adress wans't found.
+
+eatlwmv:
+sub #1, r5 ; Reducing column index by 1.
+cmp r5, #0
+blt badIdxj ; If column index is less than 0, cannot eat, dest is not a legal cell adress.
+sub #1, r3 ; Reducing row index by 1.
+cmp r3, #0
+blt badIdxj ; If r3 is less than 0, cannot eat (out of bounds). dest is not a legal cell adress.
+;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, Check if it is empty.
+mov source,r1
+cmp -36.(r1), #0 ; Checking if the cell is empty.
+bne badIdxj ;If the cell is not empty, cannot eat. Skip to the next cell.
+sub #36., r1
+cmp dest, r1
+beq destFound
+jmp badIdxj ; No more moving options.
+
+bIdxChk:
+cmp source, dest
+bgt badIdxj ; If source>dest black is trying to move up instead of down.
+mov r2, r4 ; Putting index of the current row in r4.
+add #1, r4 ; Increasing row index by 1.
+cmp r4, #7
+bgt badIdxj ; If row index is bigger than 7, cannot move left, dest adress cannot be legal.
+mov r3, r5 ; Setting r5 to the current column index (after changing it eariler).
+add #1, r5 ; Increasing column index by 1.
+cmp r5, #7
+bgt RightBmv ; If column index is bigger than 7, the current piece cannot move left, Check legal moves to the right.
+mov source, r1
+cmp 18.(r1), #2 ; Checking if the lower right piece is black.
+beq RightBmv ; If the lower right piece is black, cannot go there, Check legal moves to the right.
+; If we got here the desteation index can be the lower right cell.
+cmp 18.(r1), #1 ; Checking if the lower right piece is black.
+beq eatlbmv ; If the lower right piece is white, check if the black piece can eat it.
+add #18., r1
+cmp dest, r1
+beq destFound
+br RightBmv ; Keep on checking legal moves to the right (cannot eat so we don't need to check an eating option).
+
+eatlbmv:
+add #1, r4 ; Increasing row index by 1.
+cmp r4, #7 ; If r3 is bigger than 7, cannot eat (out of bounds). Check legal moves to the right.
+bgt RightBmv
+add #1, r5 ;Increasing column index by 1.
+cmp r5, #7
+bgt RightBmv ; If column index is bigger than 7, cannot eat (out of bounds). Check legal moves to the right.
+;If we got here, the cell which the current black piece should be placed after eating is in the board bounds, we need to check if it is empty.
+mov source, r1
+cmp 36.(r1), #0 ; Checking if the cell is empty.
+bne RightBmv ; If the cell is not empty, cannot eat. Check legal moves to the right.
+add #36., r1
+cmp dest, r1
+beq destFound
+
+RightBmv:
+mov r2, r4 ; Putting index of the current row in r3.
+add #1, r4 ; Increasing row index by 1.
+mov r3, r5 ; Putting index of the current column in r5.
+sub #1, r5 ; Decreasing column index by 1.
+cmp r5, #0
+blt badIdxju ; If column index is less than 0, cannot move right, desteation adress cannot be legal.
+mov source, r1
+cmp 14.(r1), #2 ; Checking if the lower left piece is black.
+beq badIdxju ; If the lower left piece is white, cannot move there, desteation adress cannot be legal.
+cmp 14.(r1), #1 ; Checking if the lower left piece is white.
+beq eatrbmv ; If the lower left piece is white, check if the black piece can eat it.
+add #14., r1
+cmp dest, r1
+beq destFound
+jmp badIdxj ;No more moving options.
+
+badIdxju:
+jmp badIdx
+eatrbmv:
+sub #1, r5 ; Reducing column index by 1.
+cmp r5, #0
+blt badIdxju ; If column index is less than 0, cannot eat, desteation adress cannot be legal.
+add #1, r4 ; Increasing row index by 1.
+cmp r4, #7
+bgt badIdxju ; If r3 is bigger than 7, cannot eat (out of bounds). Skip to the next cell.
+;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, Check if it is empty.
+mov source, r1
+cmp 28.(r1), #0 ; Checking if the cell is empty.
+bne badIdxju ;If the cell is not empty, cannot eat.
+add #28., r1
+cmp dest, r1
+beq destFound
+jmp badIdxj ; No more moving options.
+
+destFound:
+mov (sp)+, r5
+mov (sp)+, r4
+mov (sp)+, r3
+mov (sp)+, r2
+mov (sp)+, r1 ;Restores r1's value.
+mov (sp)+, r0 ;Restores r0's value.
+mov source, -(sp)
+mov dest, -(sp)
+jsr pc, movPiece
+add #4, sp ;Popping source and dest.
+rti
+
+badIdx:
+mov (sp)+, r5
+mov (sp)+, r4
+mov (sp)+, r3
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+jmp noCom
 
 
 ;===============================================================================
 ;                                FUNCTIONS
 ;===============================================================================
+;-------------------------------------------------------------------------------
+;                                movPiece
+;-------------------------------------------------------------------------------
+; This method will move a player from the source position to the destanation
+; position.
+;
+; Input:
+; 1. Destanation position - will be stored at 2(sp).
+; 2. Source position - will be stored at 4(sp).
 
+movPiece:
+ mov r1, -(sp) ; Backing up  r1.
+ mov r3, -(sp) ; Backing up  r3.
+ mov 10(sp), r1 ; r1 = Adress of source position.
+ mov 6(sp), r3 ; r3 = Adress of destanation position.
+
+ ; Making the changes.
+ mov (r1), (r3) ; board[dest] = board[source].
+ mov #0, (r1) ; board[source] = 0.
+
+ ; Now we need to check if there was an eat. We will find the address
+ ; in the middle between the source address and the dest address.
+ ; Notice that if there was an eat then the address of the eaten cell
+ ; is a multiply of 2 and is equal to: (src_addr + dest_addr)/2 .
+ ; In that case we also need to put 0 in that place.
+ ; If there was no eat then the address of the middle cell is not a
+ ; multiply of 2 and so we need to finish the function.
+ mov r0, -(sp) ; Backing up r0.
+ clr r0
+ add r3, r1 ; r1 = source address + dest address
+ div #2, r0  ; r0 will hold the address of the eaten cell in case of eat.
+ mov r0, -(sp) ; Backing up the address of the eaten cell.
+ ; Now we have the potenitally eaten cell address. we need to check if
+ ; that eaten cell address is a multiply of 2.
+ clr r0
+ mov (sp), r1 ; r1 = eaten cell address.
+ div #2, r0 ; r1 will hold the remainer.
+ cmp r1, #0 ;
+ bne endmop ; if the remainer is not zero there was no eat. goto endmop.
+ ; If we got here then the remainer is zero. it means that there was an
+ ; eat and we need to put 0 in the eaten place.
+ ; Notice that the eaten cell address is at sp.
+ mov #0, @(sp)
+; Method is done. Restoring registers.
+endmop:
+tst (sp)+ ; popping the eaten cell address (no longer needed).
+mov (sp)+, r0 ; Restoring value of r0.
+mov (sp)+, r3 ; Restoring value of r4.
+mov (sp)+, r1 ; Restoring value of r3.
+rts pc
 ;-------------------------------------------------------------------------------
 ;                                PrintStr
 ;-------------------------------------------------------------------------------
@@ -485,6 +777,11 @@ errorCom: .blkw 25.
 errPtr: .blkw 1
 putDolar: .word 0
 
+turn: .word 1
+source: .word 0
+dest: .word 0
+
+
 
 wPlayer: .byte 0
 .even
@@ -511,3 +808,12 @@ hmn: .ascii<Human\s\0>
 computer: .ascii<Computer\s\0>
 with: .ascii <with\s\0>
 secpermov: .ascii<seconds\sper\smove\r>
+
+Board:.word	0,	0,	0,	2,	0,	0,	0,	2
+			.word	0,	0,	2,	0,	2,	0,	2,	0
+			.word	0,	1,	0,	1,	0,	2,	0,	1
+			.word	1,	0,	0,	0,	0,	0,	0,	0
+			.word	0,	0,	0,	0,	0,	0,	0,	0
+			.word	1,	0,	1,	0,	1,	0,	1,	0
+			.word	0,	1,	0,	1,	0,	1,	0,	1
+			.word	1,	0,	1,	0,	1,	0,	1,	0
