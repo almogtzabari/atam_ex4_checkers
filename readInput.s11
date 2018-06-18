@@ -2,6 +2,7 @@ tks = 177560
 tkb = 177562
 tps = 177564
 tpb = 177566
+lcs = 177546
 asciimask = 177760
 
 .=torg + 60
@@ -36,8 +37,83 @@ bne cont
 cmp turn, #1
 beq whitTurn
 ; Black player's turn
+mov r1, -(sp)
+mov bTime, r1
+mul rate, r1
+mov r1, tcounter ;Setting white player's time.
+mov (sp)+, r1
+mov #100, @#lcs ;Clock is on.
+cmpb #1, bPlayer
+bne bCpu
+;Black player is Human
+BHmnTrn: ; Black human turn
 
-wait
+cmp #0, TIMOUT
+beq BHmnTrn
+cmp #-1., TIMOUT
+beq BHTend ; Black Human Turn End
+;-------------------------------------------------------------------------------
+; todo : Print out of time game over.
+mov #Blk, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #hmn, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #gameOver, -(sp)
+jsr pc, printStr
+tst (sp)+
+;-------------------------------------------------------------------------------
+mov #0, TIMOUT
+mov #0, @#lcs
+mov #0, gameOn ; Game End
+jmp w
+BHTend:
+; Black Human Turn End
+mov #0, TIMOUT
+jmp w
+
+bCpu:
+;Call recursive function.
+jmp w
+whitTurn:
+mov r1, -(sp)
+mov wTime, r1
+mul rate, r1
+mov r1, tcounter ;Setting white player's time.
+mov (sp)+, r1
+mov #100, @#lcs ;Clock is on.
+cmpb #1, wPlayer
+bne wCpu
+;White player is human
+WHmnTrn: ; White human turn
+cmp #0, TIMOUT
+beq WHmnTrn
+cmp #-1., TIMOUT
+beq WHTend ; White Human Turn End
+;-------------------------------------------------------------------------------
+; todo : Print out of time game over.
+mov #Wht, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #hmn, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #gameOver, -(sp)
+jsr pc, printStr
+tst (sp)+
+
+;-------------------------------------------------------------------------------
+mov #0, TIMOUT
+mov #0, @#lcs
+mov #0, gameOn ; Game End
+jmp w
+WHTend:
+mov #0, TIMOUT
+jmp w
+
+wCpu:
+;Call recursive function.
 jmp w
 
 ; Read input
@@ -663,8 +739,11 @@ mov source, -(sp)
 mov dest, -(sp)
 jsr pc, movPiece
 add #4, sp ;Popping source and dest.
-jsr pc, printNL ; Printing new line
 
+mov #0, @#lcs ; Stopping the clock
+mov #-1., TIMOUT ; Player Moved successfully.
+
+jsr pc, printNL ; Printing new line
 cmp turn, #1
 beq whitMv
 ; Black Player Turn
@@ -687,7 +766,7 @@ tst (sp)+
 mov #dotStr, -(sp)
 jsr pc, printStr
 tst (sp)+
-jsr pc, printB
+jsr pc, printB ; Printing Board
 jsr pc, chgTurn
 rts pc
 
@@ -705,7 +784,15 @@ jmp noCom
 ;                           Clock interrupt
 ;-------------------------------------------------------------------------------
 clock:
+dec tcounter
+tst tcounter
+beq timeUp
+rti
+timeUp:
 
+mov #1, TIMOUT
+
+rti
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1147,7 +1234,8 @@ bTimeStr: .blkw 25.
 bTimePtr: .word 0
 
 .even
-TIMOUT:.word 1
+TIMOUT:.word 0
+tcounter:.word 0
 
 ;========================================================================
 ;                            STRINGS
@@ -1173,6 +1261,7 @@ movStr: .ascii <move\s\0>
 tookStr: .ascii <took\s\0>
 secStr: .ascii <seconds\0>
 dotStr: .ascii <.\r>
+gameOver: .ascii <is\sout\sof\stime.\sGame\sOver.\r>
 
 .even
 Board:.word	0,	0,	0,	2,	0,	0,	0,	2
@@ -1193,3 +1282,5 @@ NewBoard:
 	.word	1,	0,	1,	0,	1,	0,	1,	0
 	.word	0,	1,	0,	1,	0,	1,	0,	1
 	.word	1,	0,	1,	0,	1,	0,	1,	0
+
+rate: .word 50.
