@@ -26,17 +26,20 @@ mov #command, pointer
 mov #101,@#tks ; keyboard interrupt = 1 && RE = 1
 w:
 cmp putDolar, #0
-bne cont
+bne cont1
 mov #1, putDolar
 jsr pc, printdol ; Printing $ if needed
-cont:
+cont1:
 
 cmp gameOn, #1
-bne cont
+bne cont1
 ; Game is on
 cmp turn, #1
 beq whitTurn
 ; Black player's turn
+jsr pc, printBCP ; Printing white current player
+jsr pc, printNL ; Printing new line
+jsr pc, printdol ; Printing $ if needed
 mov r1, -(sp)
 mov bTime, r1
 mul rate, r1
@@ -71,12 +74,34 @@ jmp w
 BHTend:
 ; Black Human Turn End
 mov #0, TIMOUT
-jmp w
+jmp cont1
 
 bCpu:
 ;Call recursive function.
+mov #source, -(sp)
+mov #dest, -(sp)
+mov #WinParam, -(sp)
+mov #1, Steps ; Setting steps to 1.
+jsr pc, getMaxWP
+add #6, sp
+tst gameOn
+beq endGame
+mov source, -(sp)
+mov dest, -(sp)
+jsr pc, movPiece
+add #4, sp ;Popping source and dest.
+mov #0, TIMOUT
+mov #0, @#lcs
+jsr pc, chgTurn
+;todo: print how much time the move took.
+jsr pc, printB
 jmp w
+
+
 whitTurn:
+jsr pc, printWCP ; Printing white current player
+jsr pc, printNL ; Printing new line
+jsr pc, printdol ; Printing $ if needed
 mov r1, -(sp)
 mov wTime, r1
 mul rate, r1
@@ -110,10 +135,27 @@ mov #0, gameOn ; Game End
 jmp w
 WHTend:
 mov #0, TIMOUT
-jmp w
+jmp cont1
 
 wCpu:
 ;Call recursive function.
+mov #source, -(sp)
+mov #dest, -(sp)
+mov #WinParam, -(sp)
+mov #1, Steps ; Setting steps to 1.
+jsr pc, getMaxWP
+add #6, sp
+tst gameOn
+beq endGame
+mov source, -(sp)
+mov dest, -(sp)
+jsr pc, movPiece
+add #4, sp ;Popping source and dest.
+mov #0, TIMOUT
+mov #0, @#lcs
+jsr pc, chgTurn
+;todo: print how much time the move took.
+jsr pc, printB
 jmp w
 
 ; Read input
@@ -275,6 +317,7 @@ jsr pc, printStr
 tst (sp)+
 mov #command, pointer
 jsr pc, printNL ; Printing new line
+jsr pc, printdol
 rts pc ; return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -469,8 +512,7 @@ jsr pc, printNL ; Printing new line
 
 jsr pc, initBoard ; Initializing the board
 jsr pc, printB ; Printing the board
-jsr pc, printWCP ; Printing white current player
-jsr pc, printNL ; Printing new line
+
 
 rts pc ; Return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1202,11 +1244,1141 @@ mov (sp)+, r0
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;-------------------------------------------------------------------------------
+;                                 getMaxWP:
+;-------------------------------------------------------------------------------
+; This function makes first preperations and calls the reccursive function.
+; Inputs:
+;   1. #SrcPos - Label to write the source position of the piece should move.
+;   2. #DstPos - Label to write the destenation position of the piece should move.
+;   3. #WinParam - Label to write the winning parameter.
+; A label of the board, number of steps (how deep to check) and the player to
+; check will also be inputs in a common area.
+; Outputs:
+; The outputs will be written to the given labels (inputs).
+;-------------------------------------------------------------------------------
+getMaxWP:
+; Preparing the stack for the first call.
+mov #0, -(sp) ; Allocating place source position in stack.
+mov #0, -(sp) ; Allocating place destenation position in stack.
+mov #-100., -(sp) ; Allocating place for WP in stack.
+mov #1, -(sp) ;  Allocating place for minOrMax of the first player.
+mov turn, -(sp) ; Pushing the player we check to the stack.
+mov Steps, -(sp) ; Pushing number of steps to stack.
+; Calling the recursive function.
+jsr pc, getWPRec ;
+tst TIMOUT
+bne CpuTup
+; Computer player still has time.
+; Recursive function finished
+; Popping unnecessary data from stack and writing output to given labels:
+add #6, sp ; Popping unnecessary data from stack.
+mov (sp)+, @6.(sp) ; Writing the best wp to WP label.
+; SrcPos and DstPos returned as address of the board.
+mov (sp)+, @6.(sp) ; Writing adress to DstPos
+mov (sp)+, @6.(sp) ; Writing adress to SrcPos
+add #2, Steps
+jmp getMaxWP
+CpuTup:
+add #12., sp
+rts pc ; Returning to main.
+
+;-------------------------------------------------------------------------------
+;                                 getWPRec:
+;-------------------------------------------------------------------------------
+; This function is the recursive function. It calculates the best next move of a
+; given player in a given board.
+; Inputs:
+;   1. Player to check - will be in a common area.
+;   2. Steps - number of steps left to check.
+;   3.
+;-------------------------------------------------------------------------------
+; This is the reccursive function.
+getWPRec:
+; ----- STOP TERMS -----
+tst TIMOUT
+beq keepcalc
+rts pc
+keepcalc:
+; Preparing to call for checkWin with the last player to make a move:
+mov #Board, -(sp) ; Moving board adress to stack.
+; Pushing the last player to make a move to stack.
+; The current player has changed before calling the rec function, therefore
+; we switch to the other player (black + white - current_player):
+mov #3, -(sp)
+sub 8.(sp), (sp)
+mov #0, -(sp) ; Allocating space for output of checkWin.
+; Checks if the last player to make a move won:
+jsr pc, checkWin
+cmp #1, (sp)+ ; Checking the output and pops it from stack.
+beq whoWon ; Jumps if he won.
+
+; Last player didn't win. Now we'll check if the current player won:
+mov 8.(sp), (sp) ; Moving current player to the top of the stack.
+mov #0, -(sp) ; Allocating space for output of checkWin.
+jsr pc, checkWin
+cmp #1, (sp)+ ; Checking the output and pops it from stack.
+beq whoWon ; Jumps if he won.
+
+; If we got here no one won.
+add #4, sp ; Pop the other player and board from the stack.
+tst 2(sp) ; Check if the current number of steps is 0.
+bne jchkMov ; Jumps if (steps > 0)
+
+; If we got here steps is 0.
+mov #Board, -(sp) ; Moving board adress to stack.
+mov turn, -(sp) ; Moving the player we check to the top of the stack.
+jsr pc, calcWP ; Output will be at r4.
+add #4, sp ; Popping the no longer needed inputs (board and player).
+mov r4, 8.(sp) ; Copying output from r4 to caller's wp.
+rts pc
+
+jchkMov:
+; Checking if the current player has legal moves to make:
+mov 4(sp), -(sp) ; Moving current player to the top of the stack.
+mov #0, -(sp) ; Allocating a place for output.
+jsr pc, hasMove
+mov (sp)+, (sp) ; Writing the output of hasMove instead of current player (override).
+tst (sp)+  ; Checks if number of legal moves of current player is 0 and pops it.
+bne chkMoves ; Jumps if he has moves to make.
+; If we got here the current player has no legal moves and we need to skip his turn.
+; Preparing to call next iteration:
+mov #0, -(sp) ; Allocating space for SrcPos.
+mov #0, -(sp) ; Allocating space for DstPos.
+cmp 10.(sp), #1 ; Checks what the caller function (father) was looking for.
+bne putMax ; Jumps if the father was looking for minimum.
+; Father was looking for maximum. Now we should put minimum:
+mov #100., -(sp) ; Pushing wp. WP = MAX_VALUE
+mov #-1., -(sp) ; Pushing -1. This means that we are looking for minimum now.
+jmp cont ; Done changing max->min.
+
+putMax:
+; Father was looking for minimum. Now we should put maximum:
+mov #-100., -(sp) ; Pushing wp. WP = MIN_VALUE
+mov #1., -(sp) ; Pushing -1. This means that we are looking for maximum now.
+
+cont:
+; Continues the preperations.
+; Switch players:
+mov #3., -(sp)
+sub 14.(sp), (sp)
+; Reducing steps by 1:
+mov 12.(sp), -(sp)
+sub #1., (sp)
+jsr pc, getWPRec
+; Checking if it is the first move. If yes, we will handle it seperatly.
+add #1, (sp) ; Adding 1 to current steps because we reduced it by 1 before.
+cmp (sp), Steps ; Checking if current steps is the global steps (aka first move).
+beq firstMov ; if current steps = global steps - go to firstMov to handle it.
+sub #1, (sp) ; Restoring steps to what it was before the cmp.
+
+; Checking the returned values and updating if needed:
+cmp #1., 18.(sp) ; Checks what the caller function (father) was looking for.
+beq wasMax ; Jumps if the father was looking for maximum.
+; Father was looking for minimum. Checks if we need to update WP to the new WP.
+cmp 6.(sp), 20.(sp) ; Comparing WPs.
+bgt noUp ; Jumps if we don't need to update.
+; If we got here we need to update:
+mov 6.(sp), 20.(sp) ; Updating father's wp.
+mov 8.(sp), 22.(sp) ; Updating father's DstPos.
+mov 10.(sp), 24.(sp) ; Updating father's SrcPos.
+add #12., sp ; Popping unnecessary data from stack.
+rts pc
+
+wasMax:
+; Father was looking for maximum. Checks if we need to update WP to the new WP.
+cmp 6.(sp), 20.(sp) ; Comparing WPs.
+ble noUp ; Jumps if we don't need to update.
+; If we got here we need to update:
+mov 6.(sp), 20.(sp) ; Updating father's wp.
+mov 8.(sp), 22.(sp) ; Updating father's DstPos.
+mov 10.(sp), 24.(sp) ; Updating father's SrcPos.
+add #12., sp ; Popping unnecessary data from stack.
+rts pc
+
+firstMov:
+; If we got here then in the first move the player we check cannot move. therefore
+; we need to find any piece of his and update the src and dst to the location of
+; that piece.
+sub #1, (sp) ; Restoring steps to what it was before the cmp after jsr.
+mov #Board, -(sp) ; will be used to scan for a piece.
+fPiece:
+cmp @(sp), turn
+beq pieceF ; Piece found - go to update src and dst.
+add #2, (sp) ; Continue checking in the next cell.
+br fPiece
+pieceF:
+mov 8.(sp), 22.(sp) ; Updating father's wp.
+mov (sp), 24.(sp) ; Updating father's DstPos.
+mov (sp)+, 24.(sp) ; Updating father's SrcPos.
+noUp:
+; If we got here we do not need to update.
+add #12., sp ; Popping unnecessary data from stack.
+rts pc
+
+whoWon:
+cmp 6(sp), Steps
+bne goOn
+; This code will update Src and Dst in situations of instant win, meaning the
+; given board is already in a state of win.
+mov #Board, -(sp)
+fwinPiece: ; finding any piece of the winner.(reminder: this is an instant win)
+cmp @(sp), turn
+beq pFound ; Piece Found
+add #2, (sp)
+br fwinPiece
+pFound:
+mov (sp), 16.(sp) ; Updating father's DstPos.
+mov (sp)+, 16.(sp) ; Updating father's SrcPos.
+
+
+goOn:
+; Checks who won.
+cmp (sp)+, turn ; Check if the current player is the one we check.
+bne playerLos ; Jumps if the winner is not who we check.
+; The winner is the player we check. Updating WP to 20:
+mov #20, 10.(sp) ; WP = 20.
+tst (sp)+ ; Popping the no longer needed board from stack.
+rts pc
+playerLos:
+;The winner is not the player we check. Updating WP to -20:
+mov #-20, 10.(sp) ; WP = -20.
+tst (sp)+ ; Popping the no longer needed board from stack.
+rts pc
+; --- END OF STOP TERMS ---
+
+; r0 - Current row index.
+; r1 - Current column index.
+chkMoves:
+clr r0 ; Sets r0 to 0.
+clr r1 ; Sets r1 to 0.
+cmp 4(sp), #1 ; Checking if the current color is white.
+bne jBlack ; If the color is not white, branch to Black.
+jmp White ; If the color is white, branch to White.
+
+jBlack:
+  jmp Black
+
+; This method will check legal moves of all white pieces and calls the reccursive
+; function each time a legal move is found.
+; r2 - Will store the current checked cell address.
+; r3 - temporary row index (will be used once for another calculation).
+; r5 - temporary column index (will be used once for another calculation).
+White:
+mov r0, r3  ; Putting index of the current row in r3.
+mov r1, r5  ; Putting index of the current column in r5.
+mov #Board, r2 ; Putting board array starting index in r2.
+mul #16., r3 ; Multiplying the number of row by 16 (decimal) (length of each row in bytes).
+mul #2, r5 ; Multiplying the number of column by 2 (decimal) (width of each column in bytes).
+add r3, r2 ; Adding the number of bytes needed in order to point to the beginning of a row.
+add r5, r2 ; Adding the number of bytes needed in order to point a cell in a row.
+; r2 will now contain the address of the current cell.
+cmp (r2), #1 ; Checking if the current piece is white.
+bne NextCell ; If the color of the current piece is not white skip to the next cell.
+mov r0, r3 ; Setting r3 to the current row index (after changing it earlier).
+sub #1, r3 ; Reducing row index by 1.
+cmp r3, #0
+blt NextCell ; If row index is less than 0, cannot move at all, skip to the next cell.
+mov r1, r5 ; Setting r5 to the current column index (after changing it eariler).
+add #1, r5 ; Increasing column index by 1.
+cmp r5, #7
+bgt LeftW ; If column index is bigger than 7, the current piece cannot move right, check legal moves to the left.
+cmp -14.(r2), #1 ; Checking if the upper right piece is white.
+beq LeftW ; If the upper right piece is white, cannot go there, check legal moves to the left.
+cmp -14.(r2), #2 ; Checking if the upper right piece is black.
+beq EatRW ; If the upper right piece is black, check if the white piece can eat it.
+
+; --- WHITE CAN MOVE RIGHT ---
+; Current white piece can move to the right.
+; Preparing for the Call:
+; Inserting new location of the white piece to stack:
+mov r2, -(sp)
+sub #14., (sp)
+; No eaten piece. Inserting 0:
+mov #0, -(sp)
+; Makes the move:
+jsr pc, WhiteMov
+add #4., sp ; Popping unnecessary data from stack.
+jmp LeftW ; Go to check if this piece can also move to the left.
+
+; --- WHITE EAT RIGHT ---
+; Checks if white piece can eat to the right.
+EatRW:
+sub #1, r3 ; Reducing row index by 1.
+cmp r3, #0
+blt LeftW ; If r3 is less than 0, cannot eat (out of bounds). Check legal moves to the left.
+add #1, r5 ;Increasing column index by 1.
+cmp r5, #7
+bgt LeftW ; If column index is bigger than 7, cannot eat (out of bounds). Check legal moves to the left.
+;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, we need to check if it is empty.
+cmp -28.(r2), #0 ; Checking if the cell is empty.
+bne LeftW ; If the cell is not empty, cannot eat. Check legal moves to the left.
+
+; --- WHITE CAN EAT RIGHT ---
+; Current white piece can eat to the right.
+; Preparing for the Call:
+; Inserting new location of the white piece to stack:
+mov r2, -(sp)
+sub #28., (sp)
+; Inserting location of eaten piece.
+mov r2, -(sp)
+sub #14., (sp)
+; Makes the move:
+jsr pc, WhiteMov
+add #4., sp ; Popping unnecessary data from stack.
+jmp LeftW ; Go to check if this piece can also move to the left.
+
+; --- WHITE MOVE LEFT ---
+; Checks if white piece can move left.
+LeftW:
+mov r0, r3 ; Putting index of the current row in r3.
+sub #1, r3 ; Reducing row index by 1.
+mov r1, r5 ; Putting index of the current column in r5.
+sub #1, r5 ; Reducing column index by 1.
+cmp r5, #0
+blt NextCell ; If column index is less than 0, cannot move right, skip to the next cell.
+cmp -18.(r2), #1 ; Checking if the upper left piece is white.
+beq NextCell ; If the upper left piece is white, cannot move there, skip to the next cell.
+cmp -18.(r2), #2 ; Checking if the upper left piece is black.
+beq EatLW ; If the upper left piece is black, Check if the white piece can eat it.
+
+; --- WHITE CAN MOVE LEFT ---
+; Current white piece can move to the left.
+; Preparing for the Call:
+; Inserting new location of the white piece to stack:
+mov r2, -(sp)
+sub #18., (sp)
+; No eat. Inserting 0:
+mov #0., -(sp)
+; Makes the move:
+jsr pc, WhiteMov
+add #4., sp
+jmp NextCell ; Current white piece cannot move anymore. Go to check next cell.
+
+; --- WHITE EAT LEFT ---
+; Checks if white piece can eat to the left.
+EatLW:
+sub #1, r5 ; Reducing column index by 1.
+cmp r5, #0
+blt NextCell ; If column index is less than 0, cannot eat, skip to the next cell.
+sub #1, r3 ; Reducing row index by 1.
+cmp r3, #0
+blt NextCell ; If r3 is less than 0, cannot eat (out of bounds). Skip to the next cell.
+;If we got here, the cell which the current white piece should be
+;placed in after eating is in the board bounds, Check if it is empty.
+cmp -36.(r2), #0 ; Checking if the cell is empty.
+bne NextCell ;If the cell is not empty, cannot eat. Skip to the next cell.
+
+; --- WHITE CAN EAT LEFT ---
+; Current white piece can eat to the left.
+; Preparing for the Call:
+; Inserting new location of the white piece to stack:
+mov r2, -(sp)
+sub #36., (sp)
+; Inserting location of eaten piece:
+mov r2, -(sp)
+sub #18., (sp)
+; Makes the move:
+jsr pc, WhiteMov
+add #4., sp ; Popping unnecessary data from stack.
+jmp NextCell ; Current white piece cannot move anymore. Go to check next cell.
+
+End: ;If we got here we checked all the cells of the array.
+rts pc
+
+; This method will skip to the next cell by adding 1 to column index. If column
+; index is bigger than 7 sets it to 0 and adds 1 to row index.
+; r0 - Current row index.
+; r1 - Current column index.
+NextCell:
+add #1, r1 ; Increasing column index by 1.
+cmp r1, #8 ; Checking if reached the end of the row.
+blt InRange ; Branch to InRange if the index of column is legal.
+clr r1 ; If we got here index of column reached the end of row. Sets it to 0.
+add #1, r0 ; Go to the next row.
+cmp r0, #7
+bgt End ; If index of row is bigger than 7 we reached the end of the board.
+
+;Continues to the next cell once its indexes are valid.
+InRange:
+cmp 4(sp), #1
+bne Black
+jmp White
+
+jNxtCell:
+  jmp NextCell
+
+; This method will check legal moves of all black pieces and calls the reccursive
+; function each time a legal move is found.
+; r2 - Will store the current checked cell address.
+; r3 - temporary row index (will be used once for another calculation).
+; r5 - temporary column index (will be used once for another calculation).
+Black:
+mov r0, r3  ; Putting index of the current row in r3.
+mov r1, r5  ; Putting index of the current column in r5.
+mov #Board, r2 ; Putting board array starting index in r2.
+mul #16., r3 ; Multiplying the number of row by 16 (decimal) (length of each row in bytes).
+mul #2, r5 ; Multiplying the number of column by 2 (decimal) (width of each column in bytes).
+add r3, r2 ;Adding the number of bytes needed in order to point to the beginning of a row.
+add r5, r2 ; Adding the number of bytes needed in order to point a cell in a row.
+; r2 will now contain the address of the current cell.
+cmp (r2), #2 ; Checking if the current piece is black.
+bne NextCell ; If the color of the current piece is not black skip to the next cell.
+mov r0, r3 ; Putting index of the current row in r3.
+add #1, r3 ; Increasing row index by 1.
+cmp r3, #7
+bgt NextCell ; If row index is bigger than 7, cannot move at all, skip to the next cell.
+mov r1, r5 ; Setting r5 to the current column index (after changing it eariler).
+add #1, r5 ; Increasing column index by 1.
+cmp r5, #7
+bgt RightB ; If column index is bigger than 7, the current piece cannot move left, Check legal moves to the right.
+cmp 18.(r2), #2 ; Checking if the lower right piece is black.
+beq RightB ; If the lower left piece is black, cannot go there, Check legal moves to the right.
+cmp 18.(r2), #1 ; Checking if the lower right piece is black.
+beq EatLB ; If the lower right piece is white, check if the black piece can eat it.
+
+
+; --- BLACK CAN MOVE LEFT ---
+; Current black piece can move to the left.
+; Preparing for the Call:
+; Inserting new location of the white piece to stack:
+mov r2, -(sp)
+add #18., (sp)
+; No eaten piece. Inserting 0:
+mov #0, -(sp)
+; Makes the move:
+jsr pc, BlackMov
+add #4., sp ; Popping unnecessary data from stack.
+jmp RightB ; Go to check if current black piece can move to the right.
+
+; --- BLACK EAT LEFT ---
+; Checks if black piece can eat to the left.
+EatLB:
+add #1, r3 ; Increasing row index by 1.
+cmp r3, #7 ; If r3 is bigger than 7, cannot eat (out of bounds). Check legal moves to the right.
+bgt RightB
+add #1, r5 ;Increasing column index by 1.
+cmp r5, #7
+bgt RightB ; If column index is bigger than 7, cannot eat (out of bounds). Check legal moves to the right.
+;If we got here, the cell which the current black piece should be placed after eating is in the board bounds, we need to check if it is empty.
+cmp 36.(r2), #0 ; Checking if the cell is empty.
+bne RightB ; If the cell is not empty, cannot eat. Check legal moves to the right.
+
+; --- BLACK CAN EAT LEFT ---
+; Current black piece can move to the left.
+; Preparing for the Call:
+; Inserting new location of the white piece to stack:
+mov r2, -(sp)
+add #36., (sp)
+; Inserting location of eaten piece:
+mov r2, -(sp)
+add #18., (sp)
+; Makes the move:
+jsr pc, BlackMov
+add #4., sp ; Popping unnecessary data from stack.
+jmp RightB
+
+; --- BLACK MOVE RIGHT ---
+; Checking if black piece can move right.
+RightB:
+mov r0, r3 ; Putting index of the current row in r3.
+add #1, r3 ; Increasing row index by 1.
+mov r1, r5 ; Putting index of the current column in r5.
+sub #1, r5 ; Decreasing column index by 1.
+cmp r5, #0
+blt NextCell ; If column index is less than 0, cannot move right, skip to the next cell.
+cmp 14.(r2), #2 ; Checking if the lower left piece is black.
+beq NextCell ; If the lower left piece is white, cannot move there, skip to the next cell.
+cmp 14.(r2), #1 ; Checking if the lower left piece is white.
+beq EatRB ; If the lower left piece is white, check if the black piece can eat it.
+
+; --- BLACK CAN MOVE RIGHT ---
+; Current black piece can move to the right.
+; Preparing for the Call:
+; Inserting new location of the white piece to stack:
+mov r2, -(sp)
+add #14., (sp)
+; No eaten piece. Inserting 0:
+mov #0, -(sp)
+; Makes the move:
+jsr pc, BlackMov
+add #4., sp ; Popping unnecessary data from stack.
+jmp NextCell ; Current black piece cannot move anymore. Go to next cell.
+
+EatRB:
+sub #1, r5 ; Reducing column index by 1.
+cmp r5, #0
+blt NextCell ; If column index is less than 0, cannot eat, skip to the next cell.
+add #1, r3 ; Increasing row index by 1.
+cmp r3, #7
+bgt NextCell ; If r3 is bigger than 7, cannot eat (out of bounds). Skip to the next cell.
+;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, Check if it is empty.
+cmp 28.(r2), #0 ; Checking if the cell is empty.
+bne jNxtCell ;If the cell is not empty, cannot eat. Skip to the next cell.
+
+; --- BLACK CAN EAT RIGHT ---
+; Current black piece can eat to the right.
+; Preparing for the Call:
+; Inserting new location of the white piece to stack:
+mov r2, -(sp)
+add #28., (sp)
+; Inserting location of eaten piece:
+mov r2, -(sp)
+add #14., (sp)
+; Makes the move:
+jsr pc, BlackMov
+add #4., sp ; Popping unnecessary data from stack.
+jmp NextCell ; Current black piece cannot move anymore. Go to next cell.
+
+
+;------------------------------------------------------------------------------;
+;             The functions we were asked to write
+;------------------------------------------------------------------------------;
+;     1. checkWin                                                              ;
+;     2. calcWP                                                                ;
+;     3. movePiece                                                             ;
+;     4. minOrMax                                                              ;
+;     5. getMaxWP - At the top of this file.                                   ;
+;------------------------------------------------------------------------------;
+
+; This method checks if a given board is in a winning state for the given player.
+; Input:
+; 1. A number of player to check - will be stored in 4(sp).
+; 2. A label of the beginning of the board - will be stored in 6(sp).
+; Output:
+; -1 if the current player didn't win, 1 if the current player wins - will be stored in 2(sp).
+checkWin:
+tst -(sp) ; Allocating place for number of white pieces (output of countWB).
+tst -(sp) ; Allocating place for number of black pieces (output of countWB).
+mov 12(sp), -(sp) ; Copying board adress to the top of the stack.
+jsr pc, countWB ; Counting number of pieces from each color and puts it in stack.
+tst (sp)+ ; Pop board adress.
+cmp 10(sp), #1 ; Check if the current player is white.
+bne checkb ; Branch to checkb if the current player is black.
+tst (sp) ; Current player is white, checks the number of black pieces.
+beq currWin ; If the number of black pieces is 0 white player wins.
+tst 2(sp) ; Checks the number of white pieces.
+beq noWin ; Current player is white and the number of white pieces is 0, white player loses.
+br not0 ; Both player's number of pieces is not 0.
+
+checkb: ; The current player is black.
+tst 2(sp) ; Checks if the number of white pieces is 0.
+beq currWin ; Black player wins.
+tst (sp) ; Checks if the number of black pieces is 0.
+beq noWin ; Current player is black and the number of black pieces is 0.
+
+not0: ; We get here if the number of both player's pieces is not 0.
+mov #1, -(sp) ; Moving number of white player to check number of moves for him.
+mov #0, -(sp) ; Allocating place for number of moves and setting it to 0.
+; Checking if there is legal moves for the given player.
+jsr pc, hasMove ; Number of legal moves for white player will be at the top of the stack.
+tst (sp) ; Checks if white player has legal moves to make.
+bne hasMoves ; There are still moves to make.
+mov #2, 2(sp) ; Moving number of black player to check number of moves for him.
+jsr pc, hasMove ; Number of legal moves for black player will be at the top of the stack.
+tst (sp) ; Checks if both players has legal moves to make.
+bne hasMoves ; One of the players still has moves to make.
+tst (sp)+ ; Pops number of player's moves.
+tst (sp)+ ; Pops player number.
+cmp #1, 10(sp) ; Checks if the player is the white player.
+bne blackChk ; The player is the black player.
+cmp 2(sp), (sp) ; Checks if number of white pieces is bigger than number of black pieces.
+bgt currWin ; If the number of white pieces is bigger, white player wins.
+br noWin ; If we got here the number of white pieces is not bigger.
+blackChk: ; The current player color is black.
+cmp (sp), 2(sp) ; Checks if number of black pieces is bigger than number of white pieces.
+bgt currWin ; Black player wins.
+br noWin ; Black player lost.
+
+currWin: ; The current player wins.
+tst (sp)+ ; Pop number of black pieces.
+tst (sp)+ ; Pop number of white pieces.
+mov #1, 2(sp) ; The return value will be 1.
+rts pc
+
+hasMoves: ; One of the players still has legal moves.
+tst (sp)+ ; Pops number of moves.
+tst (sp)+ ; Pops the number of player.
+noWin: ; The current player is not winning.
+tst (sp)+ ; Pop number of black pieces.
+tst (sp)+ ; Pop number of white pieces.
+mov #-1., 2(sp)
+rts pc
+; END OF checkWin
+
+; This method will calculate the winning parameter of a given board.
+; Input:
+; 1. Label of the current board status - will be stored at 4(sp).
+; 2. Current player's turn (1-white,2-black) - will be stored at 2(sp).
+; Output:
+; Winning parameter - will be stored at R4.
+calcWP:
+mov 0, -(sp) ; Leaving blank space for output of countWB.
+mov 0, -(sp) ; Leaving blank space for output of countWB.
+mov 8(sp), -(sp) ; Giving the label of the board as input.
+jsr pc, countWB ; Counting number of pieces from each color.
+add #2, sp ; Popping the no longer needed board label from stack.
+cmp 6(sp), #2
+beq WPforW ; if current player (input) is black - go to WPforW
+; If we got here then the current player is black. It means that
+; the last player to move was white.
+mov 2(sp), r4 ; r4 = number of white vessels.
+sub (sp), r4 ; r4 = r4 - number of black vessels.
+br endCalWP ; Jumping to the end of the method.
+WPforW:
+; If we got here current player is white. It means that the
+; last player to move was black.
+mov (sp), r4 ; r4 = number of black vessels.
+sub 2(sp), r4 ; r4 = r4 - number of white players.
+br endCalWP ; Jumping to the end of the method.
+endCalWP:
+add #4, sp ; popping 2 items from stack (counters of W&B pieces)
+rts pc
+; END OF calcWP
+
+; ------------------------- HELPING FUNCTIONS -------------------------
+; 1. WhiteMov - Making a move for white piece and calls the recursive function.
+; 2. Blackmov - Making a move for black piece and calls the recursive function.
+; 3. countWB - Counting number of pieces from each color.
+; 4. hasMove - Counting the legal moves of a given player in a given board.
+;----------------------------------------------------------------------
+
+; This method will do the moving of a white piece and calls the reccursive function.
+; Input:
+; 1. Address of piece to move.
+; 2. Address of eaten piece. If it is not an eat the value will be 0.
+WhiteMov:
+; Making the move of the white player:
+mov #1, @4.(sp) ; Moving white piece to the new place.
+mov #0, (r2) ; Removing white piece from the last place it was.
+
+; Checks if there is an eat
+tst 2(sp)
+beq noEat
+
+; If we got here there is an eat
+mov #0, @2.(sp) ; Removing eaten piece
+
+noEat:
+; Backing up registers before calling the REC function.
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
+mov r2, -(sp) ; Backing up r2.
+mov r3, -(sp) ; Backing up r3.
+mov r5, -(sp) ; Backing up r5.
+
+; Preparing the arguments for the REC function.
+mov #0, -(sp) ; Allocating source position.
+mov #0, -(sp) ; Allocating destenation position.
+cmp #1, 26.(sp) ; Checking if minimum or maximum was checked in the last call.
+beq chngMin ; Changing maximum to minimum.
+
+; If we got here in the next REC we will check for maximum
+mov #-100., -(sp) ; Miminum was checked in the last call.
+mov #1, -(sp) ; Maximum will be checked.
+br changed
+
+chngMin: ; Changing maximum to minimum.
+mov #100., -(sp) ; Maximum was checked in the last call.
+mov #-1., -(sp) ; Minimum will be checked.
+
+changed: ; Changed maximum\minimum value.
+mov #3, -(sp)
+sub 30.(sp), (sp) ; Chaning to the other player.
+mov 28.(sp), -(sp) ; Copying last number of steps.
+sub #1, (sp) ; Substract 1 from number of steps.
+jsr pc, getWPRec
+
+cmp 34.(sp), #1 ; The father is looking for a maximum.
+beq upMax ; Father was looking for a maximum.
+
+; Father was looking for a minimum.
+cmp 6.(sp), 36.(sp) ; Comparing wp to the wp of the father.
+bgt nUpdate
+
+; Updating minimum.
+mov 6(sp), 36.(sp) ; Updating father wp to new minimum.
+add #12., sp ; Popping all values besides registers backup.
+mov (sp)+, r5
+mov (sp)+, r3
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+
+; Restoring previous board and updating father src and dst.
+; Restoring white piece previous location.
+mov #1, (r2)
+mov #0, @4.(sp)
+; Checks if there was an eat:
+tst 2(sp) ;
+beq SrcDst ; No eat. We don't need to restore. go to update src and dst.
+; If we got here there was an eat and we need to restore it.
+mov #2., @2.(sp) ; Restoring eaten black piece.
+br SrcDst
+
+SrcDst:
+mov r2, 18.(sp) ; Updating father's SrcPos.
+mov 4(sp), 16.(sp) ; Updating father's DstPos.
+rts pc
+
+nSrcDst:
+rts pc
+
+upMax:
+; The father is looking for maximum
+cmp 6(sp), 36.(sp) ; Comparing wp to the wp of the father.
+ble nUpdate ; Jumps if we do not need to update.
+
+; We need to update to new Maximum
+mov 6(sp), 36.(sp) ; Updating father wp to new maximum.
+add #12., sp ; Popping all values besides registers backup.
+mov (sp)+, r5
+mov (sp)+, r3
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+
+; Restoring previous board and updating father src and dst.
+; Restoring white piece previous location.
+mov #1, (r2)
+mov #0, @4.(sp)
+; Checks if there was an eat:
+tst 2(sp) ;
+beq SrcDst ; No eat. We don't need to restore. go to update src and dst.
+; If we got here there was an eat and we need to restore it.
+mov #2., @2.(sp) ; Restoring eaten black piece.
+br SrcDst
+
+nUpdate:
+add #12., sp ; Popping all values besides registers backup.
+mov (sp)+, r5
+mov (sp)+, r3
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+; Restoring previous board and updating father src and dst.
+; Restoring white piece previous location.
+mov #1, (r2)
+mov #0, @4.(sp)
+; Checks if there was an eat:
+tst 2(sp) ;
+beq nSrcDst ; No eat. We don't need to restore. No need to update src and dst.
+mov #2., @2.(sp) ; Restoring eaten black piece.
+br nSrcDst ; No need to update src and dst.
+; END OF WhiteMov
+
+; This method will do the moving of a black piece and calls the reccursive function.
+; Input:
+; 1. Address of piece to move.
+; 2. Address of eaten piece. If it is not an eat the value will be 0.
+BlackMov:
+; Making the move of the black player.
+mov #2, @4.(sp) ; Moving black piece to the new place.
+mov #0, (r2) ; Removing black piece from the last place it was.
+
+; Checks if there is an eat
+tst 2(sp)
+beq noEatB
+
+; If we got here there is an eat
+mov #0, @2.(sp) ; Removing eaten piece
+
+noEatB:
+; Backing up registers before calling the REC function.
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
+mov r2, -(sp) ; Backing up r2.
+mov r3, -(sp) ; Backing up r3.
+mov r5, -(sp) ; Backing up r5.
+
+; Preparing the arguments for the REC function.
+mov #0, -(sp) ; Allocating source position.
+mov #0, -(sp) ; Allocating destenation position.
+cmp #1, 26.(sp) ; Checking if minimum or maximum was checked in the last call.
+beq chngMinB ; Changing maximum to minimum.
+
+; If we got here in the next REC we will check for maximum
+mov #-100., -(sp) ; Miminum was checked in the last call.
+mov #1, -(sp) ; Maximum will be checked.
+br changedB
+
+chngMinB: ; Changing maximum to minimum.
+mov #100., -(sp) ; Maximum was checked in the last call.
+mov #-1., -(sp) ; Minimum will be checked.
+
+changedB: ; Changed maximum\minimum value.
+mov #3, -(sp)
+sub 30.(sp), (sp) ; Changing to the other player.
+mov 28.(sp), -(sp) ; Copying last number of steps.
+sub #1, (sp) ; Substract 1 from number of steps.
+jsr pc, getWPRec
+
+cmp 34.(sp), #1 ; The father is looking for a maximum.
+beq upMaxB ; Father was looking for a maximum.
+
+; Father was looking for a minimum.
+cmp 6(sp), 36.(sp) ; Comparing wp to the wp of the father.
+bgt nUpdateB
+
+; Updating minimum.
+mov 6(sp), 36.(sp) ; Updating father wp to new minimum.
+add #12., sp ; Popping all values besides registers backup.
+mov (sp)+, r5
+mov (sp)+, r3
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+
+; Restoring previous board and updating father src and dst.
+; Restoring black piece previous location.
+mov #2, (r2)
+mov #0, @4.(sp)
+; Checks if there was an eat:
+tst 2(sp) ;
+beq SrcDstB ; No eat. We don't need to restore. go to update src and dst.
+; If we got here there was an eat and we need to restore it.
+mov #1., @2.(sp) ; Restoring eaten white piece.
+br SrcDstB
+
+SrcDstB:
+mov r2, 18.(sp) ; Updating father's SrcPos.
+mov 4(sp), 16.(sp) ; Updating father's DstPos.
+rts pc
+
+nSrcDstB:
+rts pc
+
+upMaxB:
+; The father is looking for maximum
+cmp 6(sp), 36.(sp) ; Comparing wp to the wp of the father.
+ble nUpdateB ; Jumps if we do not need to update.
+
+; We need to update to new Maximum
+mov 6(sp), 36.(sp) ; Updating father wp to new maximum.
+add #12., sp ; Popping all values besides registers backup.
+mov (sp)+, r5
+mov (sp)+, r3
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+
+; Restoring previous board and updating father src and dst.
+; Restoring black piece previous location.
+mov #2, (r2)
+mov #0, @4.(sp)
+; Checks if there was an eat:
+tst 2(sp) ;
+beq SrcDstB ; No eat. We don't need to restore. go to update src and dst.
+; If we got here there was an eat and we need to restore it.
+mov #1., @2.(sp) ; Restoring eaten white piece.
+br SrcDstB
+
+nUpdateB:
+add #12., sp ; Popping all values besides registers backup.
+mov (sp)+, r5
+mov (sp)+, r3
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+; Restoring previous board and updating father src and dst.
+; Restoring black piece previous location.
+mov #2, (r2)
+mov #0, @4.(sp)
+; Checks if there was an eat:
+tst 2(sp) ;
+beq nSrcDstB ; No eat. We don't need to restore. No need to update src and dst.
+mov #1., @2.(sp) ; Restoring eaten white piece.
+br nSrcDstB ; No need to update src and dst.
+; END OF BlackMov
+
+
+; This method will count how many vessles from each color are there on the
+; given board.
+; Input:
+; Label of the beginning of the board - will be stored at 2(sp).
+; Output:
+; Number of white vessels - after rts will be stored at 4(sp).
+; Number of black vessels - after rts will be stored at 2(sp).
+;
+; Notice: after rts 0(sp) will store the label of the board.
+countWB:
+mov r0, -(sp) ; Backing up r0. r0 will be used to scan the board.
+mov r1, -(sp) ; Backing up r1. r1 will be used to count white vessels.
+mov r2, -(sp) ; Backing up r2. r2 will be used to count black vessels.
+mov r3, -(sp) ; Backing up r3. r3 will store the end of the board.
+clr r1
+clr r2
+mov 10.(sp), r0 ; r0 = beginning of the board.
+mov r0, r3 ; r3 = beginning of the board.
+add #176, r3 ; r3 = end of the board.
+cntloop:
+tst (r0) ;
+beq endloop ; if (r0) is 0 then no player in this cell.
+cmp (r0), #1
+bne addBLK
+inc r1 ; Current cell is white. r1++ .
+br endloop ; Go to next cell.
+addBLK:
+inc r2 ; Current cell is black. r2++ .
+jmp endloop ; Go to next cell.
+
+endloop:
+add #2, r0 ; r0 will point to next cell in the board.
+cmp r0,r3
+ble cntloop ; if we are still in the board limits - go to cntloop.
+; If we got here we finished going through the entire board.
+mov r1, 14.(sp) ; Writing white counter to stack.
+mov r2, 12.(sp) ; Writing black counter to stack.
+mov (sp)+, r3 ; Restoring the value of r3.
+mov (sp)+, r2 ; Restoring the value of r2.
+mov (sp)+, r1 ; Restoring the value of r1.
+mov (sp)+, r0 ; Restoring the value of r0.
+rts pc
+; END OF countWB
+
+; This method checks the given player has at least one legal move.
+; Input:
+; A number of player to check, will be at 2(sp).
+; Output:
+; A number of moves to add to, will be at (sp).
+hasMove:
+; r0 - Current row index.
+; r1 - Current column index.
+mov r0, -(sp) ; Saving r0's value on stack.
+mov r1, -(sp) ; Saving r1's value on stack.
+mov r2, -(sp) ; Saving r2's value on stack
+mov r3, -(sp) ; Saving r3's value on stack
+mov r5, -(sp); Saving r5's value on stack
+clr r0 ; Sets r0 to 0.
+clr r1 ; Sets r1 to 0.
+cmp 14.(sp), #1 ; Checking if the current color is white.
+bne chkBlack ; If the color is not white, branch to Black.
+br chkWhite ; If the color is white, branch to White.
+
+chkWhite:
+; This method will check legal moves of all white pieces.
+; r2- current cell pointer.
+; r3 - temporary row index (will be used once for another calculation).
+; r5 - temporary column index (will be used once for another calculation).
+
+mov r0, r3  ; Putting index of the current row in r3.
+mov r1, r5  ; Putting index of the current column in r5.
+mov #Board, r2 ; Putting board array starting index in r2.
+mul #16., r3 ; Multiplying the number of row by 16 (decimal) (length of each row in bits).
+mul #2, r5 ; Multiplying the number of column by 2 (decimal) (length of each column in bits).
+add r3, r2 ; Adding the number of bits needed in order to point to a start of a row.
+add r5, r2 ; Adding the number of bits needed in order to point a cell in a row.
+; r2 will now contain the address of the current cell.
+cmp (r2), #1 ; Checking if the current piece is white.
+bne SkipCell ; If the color of the current piece is not white skip to the next cell.
+mov r0, r3 ; Setting r3 to the current row index (after changing it earlier).
+sub #1, r3 ; Reducing row index by 1.
+cmp r3, #0
+blt SkipCell ; If row index is less than 0, cannot move left or right, skip to the next cell.
+mov r1, r5 ; Setting r5 to the current column index (after changing it eariler).
+add #1, r5 ; Increasing column index by 1.
+cmp r5, #7
+bgt jLeftW01 ; If column index is bigger than 7, the current piece cannot move right, check legal moves to the left.
+cmp -14.(r2), #1 ; Checking if the upper right piece is white.
+beq jLeftW01 ; If the upper right piece is white, cannot go there, check legal moves to the left.
+cmp -14.(r2), #2 ; Checking if the upper right piece is black.
+beq eatrw1 ; If the upper right piece is black, check if the white piece can eat it.
+add #1, 12.(sp) ; If we got here the upper right cell contains 0, the white piece can move there. Adding 1 to number of legal moves.
+br canMove ;Found a legal move.
+
+
+eatrw1:
+;This method will check an eating option the right of white pieces.
+; r2- current cell pointer.
+; r3 - temporary row index .
+; r5 - temporary column index.
+
+sub #1, r3 ; Reducing row index by 1.
+cmp r3, #0
+blt jLeftW01 ; If r3 is less than 0, cannot eat (out of bounds). Check legal moves to the left.
+add #1, r5 ;Increasing column index by 1.
+cmp r5, #7
+bgt jLeftW01 ; If column index is bigger than 7, cannot eat (out of bounds). Check legal moves to the left.
+;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, we need to check if it is empty.
+cmp -28.(r2), #0 ; Checking if the cell is empty.
+bne jLeftW01 ; If the cell is not empty, cannot eat. Check legal moves to the left.
+add #1, 12.(sp) ;If we got here, can eat, adding 1 to number of legal moves.
+br canMove ;Found a legal move.
+
+jLeftW01:
+; This method will check legal moves to the left of white pieces.
+; r2- current cell pointer.
+; r3 - temporary row index .
+; r5 - temporary column index.
+
+mov r0, r3 ; Putting index of the current row in r3.
+sub #1, r3 ; Reducing row index by 1.
+mov r1, r5 ; Putting index of the current column in r5.
+sub #1, r5 ; Reducing column index by 1.
+cmp r5, #0
+blt SkipCell ; If column index is less than 0, cannot move right, skip to the next cell.
+cmp -18.(r2), #1 ; Checking if the upper left piece is white.
+beq SkipCell ; If the upper left piece is white, cannot move there, skip to the next cell.
+cmp -18.(r2), #2 ; Checking if the upper left piece is black.
+beq eatlw1 ; If the upper left piece is black, Check if the white piece can eat it.
+add #1, 12.(sp) ; If we got here, upper left cell contains 0, can move there. Adding 1 to number of legal moves..
+br canMove ;Found a legal move.
+
+eatlw1:
+;This method will check an eating option the left of white pieces.
+; r2- current cell pointer.
+; r3 - temporary row index .
+; r5 - temporary column index.
+
+sub #1, r5 ; Reducing column index by 1.
+cmp r5, #0
+blt SkipCell ; If column index is less than 0, cannot eat, skip to the next cell.
+sub #1, r3 ; Reducing row index by 1.
+cmp r3, #0
+blt SkipCell ; If r3 is less than 0, cannot eat (out of bounds). Skip to the next cell.
+;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, Check if it is empty.
+cmp -36.(r2), #0 ; Checking if the cell is empty.
+bne SkipCell ;If the cell is not empty, cannot eat. Skip to the next cell.
+add #1, 12.(sp) ;If we got here, can eat, adding 1 to legal number of moves on the stack.
+br canMove ;Found a legal move.
+
+canMove: ;If we got here we checked all the cells of the array or we got a legal move.
+mov (sp)+, r5 ; Returning r5 it's original value.
+mov (sp)+, r3 ; Returning r3 it's original value.
+mov (sp)+, r2 ; Returning r2 it's original value.
+mov (sp)+, r1 ; Returning r1 it's original value.
+mov (sp)+, r0 ; Returning r0 it's original value.
+rts pc ; When we return from this subroutine the output will be at the top of the stack
+
+SkipCell:
+; This method will skip to the next cell by adding 1 to column index. If column
+; index is bigger than 7 sets it to 0 and adds 1 to row index.
+; r0 - Current row index.
+; r1 - Current column index.
+
+add #1, r1
+cmp r1, #8 ; Checking if passed end of row.
+blt RangeOK ; Index of column is legal.
+clr r1 ; If we got here index of column passed end of row. Set it to 0.
+add #1, r0 ; Go to the next row.
+cmp r0, #7
+bgt canMove ; If index of row is bigger than 7 we reached the end of the board.
+
+RangeOK:
+;Continue on checking in the same row.
+cmp 14.(sp), #1
+bne chkBlack
+br chkWhite
+
+chkBlack:
+; This method will check legal moves of all black pieces.
+; r2- current cell pointer.
+; r3 - temporary row index (will be used once for another calculation).
+; r5 - temporary column index (will be used once for another calculation).
+
+mov r0, r3  ; Putting index of the current row in r3.
+mov r1, r5  ; Putting index of the current column in r5.
+mov #Board, r2 ; Putting board array starting index in r2.
+mul #16., r3 ; Multiplying the number of row by 16 (decimal) (length of each row in bits).
+mul #2, r5 ; Multiplying the number of column by 2 (decimal) (length of each column in bits).
+add r3, r2 ;Adding the number of bits needed in order to point to a start of a row.
+add r5, r2 ; Adding the number of bits needed in order to point a cell in a row.
+; r2 will now contain the address of the current cell.
+cmp (r2), #2 ; Checking if the current piece is black.
+bne SkipCell ; If the color of the current piece is not black skip to the next cell.
+mov r0, r3 ; Putting index of the current row in r3.
+add #1, r3 ; Increasing row index by 1.
+cmp r3, #7
+bgt SkipCell ; If row index is bigger than 7, cannot move left, skip to the next cell.
+mov r1, r5 ; Setting r5 to the current column index (after changing it eariler).
+add #1, r5 ; Increasing column index by 1.
+cmp r5, #7
+bgt RightB1 ; If column index is bigger than 7, the current piece cannot move left, Check legal moves to the right.
+cmp 18.(r2), #2 ; Checking if the lower right piece is black.
+beq RightB1 ; If the lower right piece is black, cannot go there, Check legal moves to the right.
+cmp 18.(r2), #1 ; Checking if the lower right piece is black.
+beq eatlb1 ; If the lower right piece is white, check if the black piece can eat it.
+add #1, 12.(sp) ; If we got here the lower right cell contains 0, the black piece can move there. Adding 1 to number of legal moves.
+br canMove ;Found a legal move.
+
+eatlb1:
+;This method will check an eating option the left of black pieces.
+; r2- current cell pointer.
+; r3 - temporary row index .
+; r5 - temporary column index.
+
+add #1, r3 ; Increasing row index by 1.
+cmp r3, #7 ; If r3 is bigger than 7, cannot eat (out of bounds). Check legal moves to the right.
+bgt RightB1
+add #1, r5 ;Increasing column index by 1.
+cmp r5, #7
+bgt RightB1 ; If column index is bigger than 7, cannot eat (out of bounds). Check legal moves to the right.
+;If we got here, the cell which the current black piece should be placed after eating is in the board bounds, we need to check if it is empty.
+cmp 36.(r2), #0 ; Checking if the cell is empty.
+bne RightB1 ; If the cell is not empty, cannot eat. Check legal moves to the right.
+add #1, 12.(sp) ;If we got here, can eat. Adding 1 to number of legal moves.
+br canMove ;Found a legal move.
+
+RightB1:
+; This method will check legal moves to the right of black pieces.
+; r2- current cell pointer.
+; r3 - temporary row index .
+; r5 - temporary column index.
+
+mov r0, r3 ; Putting index of the current row in r3.
+add #1, r3 ; Increasing row index by 1.
+mov r1, r5 ; Putting index of the current column in r5.
+sub #1, r5 ; Decreasing column index by 1.
+cmp r5, #0
+blt SkipCell ; If column index is less than 0, cannot move right, skip to the next cell.
+cmp 14.(r2), #2 ; Checking if the lower left piece is black.
+beq SkipCell ; If the lower left piece is white, cannot move there, skip to the next cell.
+cmp 14.(r2), #1 ; Checking if the lower left piece is white.
+beq eatrb1 ; If the lower left piece is white, check if the black piece can eat it.
+add #1, 12.(sp) ; If we got here the lower left cell contains 0, the black piece can move there. Adding 1 to number of legal moves.
+br canMove ;Found a legal move.
+
+eatrb1:
+; This method will check an eating option the right of black pieces.
+; r2- current cell pointer.
+; r3 - temporary row index .
+; r5 - temporary column index.
+
+sub #1, r5 ; Reducing column index by 1.
+cmp r5, #0
+blt SkipCell ; If column index is less than 0, cannot eat, skip to the next cell.
+add #1, r3 ; Increasing row index by 1.
+cmp r3, #7
+bgt SkipCell ; If r3 is bigger than 7, cannot eat (out of bounds). Skip to the next cell.
+;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, Check if it is empty.
+cmp 28.(r2), #0 ; Checking if the cell is empty.
+bne SkipCell ;If the cell is not empty, cannot eat. Skip to the next cell.
+add #1, 12.(sp) ;If we got here, can eat. Adding 1 to number of legal moves.
+br canMove ;Found a legal move.
+; END OF hasMove
+
+
+
+
 ;==============================================================================
 ;                             END OF FUNCTIONS
 ;==============================================================================
 
-.=torg + 8000
+.=torg + 15000
 command: .blkw 25.
 pointer: .blkw 1
 curChar: .byte 1
@@ -1219,7 +2391,8 @@ putDolar: .word 0
 turn: .word 1
 source: .word 0
 dest: .word 0
-
+WinParam: .word 0
+Steps: .word 0
 
 
 wPlayer: .byte 0
