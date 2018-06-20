@@ -37,7 +37,7 @@ bne cont1
 cmp turn, #1
 beq whitTurn
 ; Black player's turn
-jsr pc, printBCP ; Printing white current player
+jsr pc, printBCP ; Printing black current player
 jsr pc, printNL ; Printing new line
 jsr pc, printdol ; Printing $ if needed
 mov r1, -(sp)
@@ -50,7 +50,8 @@ cmpb #1, bPlayer
 bne bCpu
 ;Black player is Human
 BHmnTrn: ; Black human turn
-
+tst gameOn
+beq endGBj
 cmp #0, TIMOUT
 beq BHmnTrn
 cmp #-1., TIMOUT
@@ -66,6 +67,7 @@ tst (sp)+
 mov #gameOver, -(sp)
 jsr pc, printStr
 tst (sp)+
+jsr pc, printNL
 ;-------------------------------------------------------------------------------
 mov #0, TIMOUT
 mov #0, @#lcs
@@ -85,7 +87,7 @@ mov #1, Steps ; Setting steps to 1.
 jsr pc, getMaxWP
 add #6, sp
 tst gameOn
-beq endGame
+beq endGBj
 mov source, -(sp)
 mov dest, -(sp)
 jsr pc, movPiece
@@ -94,9 +96,12 @@ mov #0, TIMOUT
 mov #0, @#lcs
 jsr pc, chgTurn
 ;todo: print how much time the move took.
-jsr pc, printB
-jmp w
+jsr pc, printB ; Print board.
+jmp cont1
 
+endGBj: jmp endGameB
+
+endGWj: jmp endGameW
 
 whitTurn:
 jsr pc, printWCP ; Printing white current player
@@ -112,6 +117,8 @@ cmpb #1, wPlayer
 bne wCpu
 ;White player is human
 WHmnTrn: ; White human turn
+tst gameOn
+beq endGWj
 cmp #0, TIMOUT
 beq WHmnTrn
 cmp #-1., TIMOUT
@@ -127,6 +134,7 @@ tst (sp)+
 mov #gameOver, -(sp)
 jsr pc, printStr
 tst (sp)+
+jsr pc, printNL
 
 ;-------------------------------------------------------------------------------
 mov #0, TIMOUT
@@ -146,7 +154,7 @@ mov #1, Steps ; Setting steps to 1.
 jsr pc, getMaxWP
 add #6, sp
 tst gameOn
-beq endGame
+beq endGWj
 mov source, -(sp)
 mov dest, -(sp)
 jsr pc, movPiece
@@ -156,7 +164,50 @@ mov #0, @#lcs
 jsr pc, chgTurn
 ;todo: print how much time the move took.
 jsr pc, printB
+jmp cont1
+
+endGameW:
+mov #0, @#lcs
+mov #WPfor, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #wplyris, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov r4, -(sp)
+mov #Board, -(sp)
+mov turn, -(sp)
+jsr pc, calcWP
+mov r4, WinParam
+add #4, sp
+mov (sp)+, r4
+jsr pc, printWP
+jsr pc, printNL
+jsr pc, printWin
+jsr pc, printNL
 jmp w
+
+endGameB:
+mov #0, @#lcs
+mov #WPfor, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #bplyris, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov r4, -(sp)
+mov #Board, -(sp)
+mov turn, -(sp)
+jsr pc, calcWP
+mov r4, WinParam
+add #4, sp
+mov (sp)+, r4
+jsr pc, printWP
+jsr pc, printNL
+jsr pc, printWin
+jsr pc, printNL
+jmp w
+
 
 ; Read input
 rInput:
@@ -509,7 +560,9 @@ jsr pc, printBPT ; print Black Player Time
 jsr pc, printSPM ; Printing "seconds per move\r"
 jsr pc, printNL ; Printing new line
 
-
+mov #1, turn
+mov #0, tcounter
+mov #0, WinParam
 jsr pc, initBoard ; Initializing the board
 jsr pc, printB ; Printing the board
 
@@ -523,10 +576,10 @@ rts pc ; Return from decode
 ;                           Command is 'stop'
 ;-------------------------------------------------------------------------------
 stopCom:
+tst gameOn
+beq jnoCom1
 mov #0, gameOn ; Stopping the game
-;-------------------------------------------------------------------------------
-; todo: enter here code to print relevant data of the end game
-;-------------------------------------------------------------------------------
+jsr pc, printNL
 rts pc ; Return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -969,7 +1022,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 printBPI:
 ; Printing "Black player is "
-mov #bplyris, -(sp)
+mov #Bplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
@@ -980,7 +1033,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 printWPI:
 ; Printing "White player is "
-mov #wplyris, -(sp)
+mov #Wplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
@@ -1012,7 +1065,7 @@ rts pc
 ;                                printBLK
 ;-------------------------------------------------------------------------------
 printBLK:
-; Printing: "White "
+; Printing: "Black "
 mov #Blk, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1109,19 +1162,54 @@ rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
+;                                printWP
+;-------------------------------------------------------------------------------
+printWP:
+mov r0, -(sp)
+mov r1, -(sp)
+clr r0
+mov WinParam, r1
+tst WinParam
+bpl positWP ; Positive WP
+mul #-1., r1
+movb #'-, @#tpb
+tstb @#tps
+bpl .-4
+positWP:
+div #10., r0
+add #60, r1
+tst r0
+beq endWP
+add #60, r0
+movb r0, @#tpb
+tstb @#tps
+bpl .-4
+endWP:
+movb r1, @#tpb
+tstb @#tps
+bpl .-4
+mov (sp)+, r1
+mov (sp)+, r0
+jsr pc, printNL
+rts pc
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-------------------------------------------------------------------------------
 ;                                printBCP
 ;-------------------------------------------------------------------------------
 printBCP:
-; Printing: 'Current Player: White'
+; Printing: 'Current Player: black'
 mov #CPStr, -(sp)
 jsr pc, printStr
 tst (sp)+
 mov #Blk, -(sp)
 jsr pc, printStr
 tst (sp)+
-cmp #1, wPlayer
+cmp #1, bPlayer
 beq blkpl
-; White Player is computer
+; Black Player is computer
 mov #computer, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1133,6 +1221,35 @@ jsr pc, printStr
 tst (sp)+
 endBCP:
 jsr pc, printNL ; Printing new line
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;-------------------------------------------------------------------------------
+;                                printWin
+;-------------------------------------------------------------------------------
+printWin:
+tst WinParam
+beq isTie
+tst WinParam
+bgt curWin
+;Current player didn't win
+cmp turn, #1
+beq Blackwin
+br Whitewin
+curWin:
+cmp turn, #1
+beq Whitewin
+Blackwin:
+jsr pc, printBLK
+mov #playerWin, -(sp)
+jsr pc, printStr
+tst (sp)+
+rts pc
+Whitewin:
+jsr pc, printWHT
+mov #playerWin, -(sp)
+jsr pc, printStr
+tst (sp)+
+isTie:
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1281,6 +1398,8 @@ mov turn, -(sp) ; Pushing the player we check to the stack.
 mov Steps, -(sp) ; Pushing number of steps to stack.
 ; Calling the recursive function.
 jsr pc, getWPRec ;
+tst gameOn
+beq CpuTup
 tst TIMOUT
 bne CpuTup
 ; Computer player still has time.
@@ -1310,6 +1429,10 @@ rts pc ; Returning to main.
 ; This is the reccursive function.
 getWPRec:
 ; ----- STOP TERMS -----
+tst gameOn
+bne keepon
+rts pc
+keepon:
 tst TIMOUT
 beq keepcalc
 rts pc
@@ -1744,16 +1867,6 @@ jsr pc, BlackMov
 add #4., sp ; Popping unnecessary data from stack.
 jmp NextCell ; Current black piece cannot move anymore. Go to next cell.
 
-
-;------------------------------------------------------------------------------;
-;             The functions we were asked to write
-;------------------------------------------------------------------------------;
-;     1. checkWin                                                              ;
-;     2. calcWP                                                                ;
-;     3. movePiece                                                             ;
-;     4. minOrMax                                                              ;
-;     5. getMaxWP - At the top of this file.                                   ;
-;------------------------------------------------------------------------------;
 
 ; This method checks if a given board is in a winning state for the given player.
 ; Input:
@@ -2395,6 +2508,7 @@ WinParam: .word 0
 Steps: .word 0
 
 
+
 wPlayer: .byte 0
 .even
 wTime: .word 0
@@ -2419,8 +2533,8 @@ cannot: .ascii <Cannot\sexecute\s"\0>
 dollar: .ascii <$ \0>
 welcome:.ascii <Welcome\sto\s312433576\sand\s203438775\scheckers\sgame!\r>
 newgame: .ascii<Starting\sa\snew\sgame\r>
-wplyris: .ascii<White\splayer\sis\s\0>
-bplyris: .ascii<Black\splayer\sis\s\0>
+Wplyris: .ascii<White\splayer\sis\s\0>
+Bplyris: .ascii<Black\splayer\sis\s\0>
 hmn: .ascii<Human\s\0>
 computer: .ascii<Computer\s\0>
 with: .ascii <with\s\0>
@@ -2435,6 +2549,10 @@ tookStr: .ascii <took\s\0>
 secStr: .ascii <seconds\0>
 dotStr: .ascii <.\r>
 gameOver: .ascii <is\sout\sof\stime.\sGame\sOver.\r>
+wplyris: .ascii<white\splayer\sis\s\0>
+bplyris: .ascii<black\splayer\sis\s\0>
+WPfor: .ascii<WP\sfor\s\0>
+playerWin: .ascii<player\swins!\r>
 
 .even
 Board:.word	0,	0,	0,	2,	0,	0,	0,	2
