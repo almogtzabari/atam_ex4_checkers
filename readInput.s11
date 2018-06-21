@@ -30,10 +30,14 @@ bne cont1
 mov #1, putDolar
 jsr pc, printdol ; Printing $ if needed
 cont1:
-
 cmp gameOn, #1
 bne cont1
 ; Game is on
+;-------------------------------------------------------------------------------
+jsr pc, chkwins
+tst gameOn ; If someone won then gameOn will be 0.
+beq w
+;-------------------------------------------------------------------------------
 cmp turn, #1
 beq whitTurn
 ; Black player's turn
@@ -56,8 +60,9 @@ cmp #0, TIMOUT
 beq BHmnTrn
 cmp #-1., TIMOUT
 beq BHTend ; Black Human Turn End
-;-------------------------------------------------------------------------------
-; todo : Print out of time game over.
+; Time is up - Game over.
+jsr pc, printNL ; Printing new line
+jsr pc, printNL ; Printing new line
 mov #Blk, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -123,8 +128,9 @@ cmp #0, TIMOUT
 beq WHmnTrn
 cmp #-1., TIMOUT
 beq WHTend ; White Human Turn End
-;-------------------------------------------------------------------------------
-; todo : Print out of time game over.
+; Time is up - Game over.
+jsr pc, printNL ; Printing new line
+jsr pc, printNL ; Printing new line
 mov #Wht, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -255,14 +261,14 @@ cmp #command, pointer
 beq ignore
 dec pointer
 movb #'\b, @#tpb
-wait0:		tstb @#tps
-bpl wait0
+tstb @#tps
+bpl .-4
 movb #' , @#tpb
-wait1:		tstb @#tps
-bpl wait1
+tstb @#tps
+bpl .-4
 movb #'\b, @#tpb
-wait2:		tstb @#tps
-bpl wait2
+tstb @#tps
+bpl .-4
 inc @#tks ; RE = 1
 mov (sp)+, r0 ; Restoring r0
 rti
@@ -1314,17 +1320,15 @@ dec r2
 br Ploop
 printWH:
 movb #'W, @#tpb
-p1wait:
 tstb @#tps ;Busy wait, wait till end of print.
-bpl p1wait
+bpl .-4
 add #2, r0
 dec r2
 br Ploop
 print_:
 movb #'_, @#tpb
-p2wait:
 tstb @#tps ;Busy wait, wait till end of print.
-bpl p2wait
+bpl .-4
 add #2, r0
 dec r2
 br Ploop
@@ -1361,7 +1365,58 @@ mov (sp)+, r0
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;-------------------------------------------------------------------------------
+;                                chkwins
+;-------------------------------------------------------------------------------
+; Checks if someone won
+chkwins:
+mov r0, -(sp) ; Backing up r0
+mov #Board, -(sp)
+mov turn, -(sp)
+tst -(sp) ; Place for output
+jsr pc, checkWin
+mov (sp)+, r0 ; r0 contains the output for checkwin
+add #4, sp
+cmp #1, r0
+beq CurPW ; Current Player win
+; Current player didn't win. Lets check win for the other player.
+mov #3, r0
+sub turn, r0
+mov #Board, -(sp)
+mov r0, -(sp)
+tst -(sp) ; Place for output
+jsr pc, checkWin
+mov (sp)+, r0 ; r0 contains the output for checkwin
+add #4, sp
+cmp #1, r0
+bne NoWinner
+; Opposite player win
+cmp turn, #1
+beq BPW
+br WPW
 
+CurPW:
+cmp turn, #1
+beq WPW ; White Player Win
+; Black Player Win
+BPW:
+mov #0, gameOn
+jsr pc, printBLK
+mov #playerWin, -(sp)
+jsr pc, printStr
+tst (sp)+
+br NoWinner
+WPW:
+mov #0, gameOn ; Stopping the game
+jsr pc, printWHT
+mov #playerWin, -(sp)
+jsr pc, printStr
+tst (sp)+
+NoWinner:
+jsr pc, printNL
+mov (sp)+, r0 ; Restoring r0
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 
