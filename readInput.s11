@@ -708,7 +708,7 @@ blt jnoCom1
 cmpb  @pointer, #'7
 bgt jnoCom1
 inc pointer
-cmpb  #'\s , @pointer
+cmpb  #'\0 , @pointer
 bne jnoCom1
 mov r0, -(sp)  ; Backing up r0.
 mov r1, -(sp)  ; Backing up r1.
