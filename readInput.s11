@@ -628,6 +628,9 @@ rts pc ; Return from decode
 ;                           Command is 'stop'
 ;-------------------------------------------------------------------------------
 stopCom:
+inc pointer
+cmpb @pointer, #0
+bne jnoCom1
 tst gameOn
 beq jnoCom1
 mov #0, gameOn ; Stopping the game
@@ -639,6 +642,9 @@ rts pc ; Return from decode
 ;                           Command is 'time'
 ;-------------------------------------------------------------------------------
 timeCom:
+inc pointer
+cmpb @pointer, #0
+bne jnoCom1
 tst gameOn
 beq jnoCom1
 jsr pc, printNL
@@ -2826,4 +2832,4 @@ NewBoard:
 	.word	0,	1,	0,	1,	0,	1,	0,	1
 	.word	1,	0,	1,	0,	1,	0,	1,	0
 
-rate: .word 50.
+rate: .word 60.
