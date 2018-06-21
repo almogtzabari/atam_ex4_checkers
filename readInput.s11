@@ -233,8 +233,8 @@ beq backspace
 ; Current char is a neither ENTER nor BackSpace
 movb curChar, @pointer
 movb curChar, @#tpb ; sending char to print
-loop: tstb @#tps
-bpl loop
+tstb @#tps
+bpl .-4
 ; curChar was printed
 inc pointer
 mov (sp)+, r0 ; Restores r0.
@@ -965,15 +965,14 @@ beq newline
 movb @2(sp), @#tpb ;Print char.
 inc 2(sp) ; Move to the next char.
 br printStr
-newline:
 tstb @#tps ;Busy wait, wait till end of print.
-bpl newline
+bpl .-4
 movb #'\r, @#tpb ;Prints carrige return.
-wx: tstb @#tps ;Busy wait, wait till end of print.
-bpl wx
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 movb #'\n, @#tpb ; Prints a new line.
-wz: tstb @#tps ;Busy wait, wait till end of print.
-bpl wz
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 sof:
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1312,9 +1311,8 @@ cmp (r0), #1 ;Check if we need to print W.
 beq printWH
 tst (r0) ; Move to the next word.
 movb #'B, @#tpb
-pwait:
 tstb @#tps ;Busy wait, wait till end of print.
-bpl pwait
+bpl .-4
 add #2, r0
 dec r2
 br Ploop
