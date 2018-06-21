@@ -707,9 +707,6 @@ cmpb @pointer, #'0
 blt jnoCom1
 cmpb  @pointer, #'7
 bgt jnoCom1
-inc pointer
-cmpb  #'\0 , @pointer
-bne jnoCom1
 mov r0, -(sp)  ; Backing up r0.
 mov r1, -(sp)  ; Backing up r1.
 mov r2, -(sp)  ; Backing up r2.
@@ -769,6 +766,9 @@ add r0, r1
 mul #2, r1 ;Multiplying by 2 (each word is 2 bytes).
 add #Board, r1
 mov r1, dest ;dest will now hold desteation board adress.
+inc pointer
+cmpb @pointer, #0
+bne badIdxj
 cmp dest, source
 beq badIdxj ; Checks if source == dest.
 cmp #1, turn
