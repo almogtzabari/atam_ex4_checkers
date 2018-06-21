@@ -39,16 +39,13 @@ tst gameOn ; If someone won then gameOn will be 0.
 beq w
 ;-------------------------------------------------------------------------------
 cmp turn, #1
-beq whitTurn
+beq whitTurj
 ; Black player's turn
 jsr pc, printBCP ; Printing black current player
 jsr pc, printNL ; Printing new line
 jsr pc, printdol ; Printing $ if needed
-mov r1, -(sp)
-mov bTime, r1
-mul rate, r1
-mov r1, tcounter ;Setting white player's time.
-mov (sp)+, r1
+mov bTime, tcounter
+mov rate, msctr
 mov #100, @#lcs ;Clock is on.
 cmpb #1, bPlayer
 bne bCpu
@@ -83,6 +80,8 @@ BHTend:
 mov #0, TIMOUT
 jmp cont1
 
+whitTurj: jmp whitTurn
+
 bCpu:
 ;Call recursive function.
 mov #source, -(sp)
@@ -100,7 +99,30 @@ add #4, sp ;Popping source and dest.
 mov #0, TIMOUT
 mov #0, @#lcs
 jsr pc, chgTurn
-;todo: print how much time the move took.
+jsr pc, printBLK
+jsr pc, printPC
+jsr pc, printMT ; Printing: 'move took '
+tst -(sp)
+mov bTime, -(sp)
+jsr pc, asciConv
+tst (sp)+ ; popping time decimal value.
+jsr pc, printStr
+tst (sp)+
+movb #'., @#tpb ; sending char to print
+tstb @#tps
+bpl .-4
+movb #'0, @#tpb ; sending char to print
+tstb @#tps
+bpl .-4
+movb #'\s, @#tpb ; sending char to print
+tstb @#tps
+bpl .-4
+mov #secStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #dotStr, -(sp)
+jsr pc, printStr
+tst (sp)+
 jsr pc, printB ; Print board.
 jmp cont1
 
@@ -112,11 +134,8 @@ whitTurn:
 jsr pc, printWCP ; Printing white current player
 jsr pc, printNL ; Printing new line
 jsr pc, printdol ; Printing $ if needed
-mov r1, -(sp)
-mov wTime, r1
-mul rate, r1
-mov r1, tcounter ;Setting white player's time.
-mov (sp)+, r1
+mov wTime, tcounter
+mov rate, msctr
 mov #100, @#lcs ;Clock is on.
 cmpb #1, wPlayer
 bne wCpu
@@ -168,7 +187,30 @@ add #4, sp ;Popping source and dest.
 mov #0, TIMOUT
 mov #0, @#lcs
 jsr pc, chgTurn
-;todo: print how much time the move took.
+jsr pc, printWHT
+jsr pc, printPC
+jsr pc, printMT ; Printing: 'move took '
+tst -(sp)
+mov wTime, -(sp)
+jsr pc, asciConv
+tst (sp)+ ; popping time decimal value.
+jsr pc, printStr
+tst (sp)+
+movb #'., @#tpb ; sending char to print
+tstb @#tps
+bpl .-4
+movb #'0, @#tpb ; sending char to print
+tstb @#tps
+bpl .-4
+movb #'\s, @#tpb ; sending char to print
+tstb @#tps
+bpl .-4
+mov #secStr, -(sp)
+jsr pc, printStr
+tst (sp)+
+mov #dotStr, -(sp)
+jsr pc, printStr
+tst (sp)+
 jsr pc, printB
 jmp cont1
 
@@ -568,6 +610,7 @@ jsr pc, printNL ; Printing new line
 
 mov #1, turn
 mov #0, tcounter
+mov #0, msctr
 mov #0, WinParam
 jsr pc, initBoard ; Initializing the board
 jsr pc, printB ; Printing the board
@@ -593,13 +636,42 @@ rts pc ; Return from decode
 ;                           Command is 'time'
 ;-------------------------------------------------------------------------------
 timeCom:
-
-;-------------------------------------------------------------------------------
-; todo: enter here code to print time left of the turn
-;-------------------------------------------------------------------------------
-
+tst gameOn
+beq jnoCom1
+jsr pc, printNL
+mov #tlefstr, -(sp)
+jsr pc, printStr
+; The place allocated for tleftstr will be used for the output of asciConv.
+mov tcounter, -(sp)
+jsr pc, asciConv
+tst (sp)+ ; popping time decimal value.
+jsr pc, printStr
+tst (sp)+
+movb #'., @#tpb ;Prints dot.
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
+mov r0, -(sp)
+mov r1, -(sp)
+clr r0
+mov msctr, r1
+div rate, r0
+mov r1, -(sp)
+mov 2(sp), r1
+mov 4(sp), r0
+mov (sp)+, (sp)
+jsr pc, asciConv
+tst (sp)+ ; popping time decimal value.
+jsr pc, printStr
+movb #' , @#tpb ;Prints dot.
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
+mov #secStr, (sp)
+jsr pc, printStr
+tst (sp)+
+jsr pc, printNL
+jsr pc, printNL
+jsr pc, printdol
 rts pc
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
 ;                           Command is 'move'
@@ -646,6 +718,8 @@ mov r1, source ; source will hold source board adress.
 cmp (r1), turn ;Checks if a piece of the current player is found in the given index.
 bne badIdxj
 inc pointer
+cmpb @pointer, #'\s
+bne badIdxj
 skip:
 cmpb  #' , @pointer
 bne cont2
@@ -849,18 +923,65 @@ cmp turn, #1
 beq whitMv
 ; Black Player Turn
 jsr pc, printBLK ; Printing: 'Black '
+jsr pc, printHmn ; Printing: 'Human '
+jsr pc, printMT ; Printing: 'move took '
+tst -(sp)
+mov bTime, -(sp)
+sub tcounter, (sp) ; r0 will contain how much seconds left in decimal.
+jsr pc, asciConv
+tst (sp)+ ; popping time decimal value.
+jsr pc, printStr
+tst (sp)+
+movb #'., @#tpb ;Prints dot.
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
+mov r0, -(sp)
+mov r1, -(sp)
+clr r0
+mov rate, r1
+sub msctr, r1
+div rate, r0
+mov r1, -(sp)
+mov 2(sp), r1
+mov 4(sp), r0
+mov (sp)+, (sp)
+jsr pc, asciConv
+tst (sp)+ ; popping time decimal value.
+jsr pc, printStr
+tst (sp)+
 jmp zibby
 
 whitMv:
-
 jsr pc, printWHT
-zibby:
 jsr pc, printHmn ; Printing: 'Human '
 jsr pc, printMT ; Printing: 'move took '
-
-;-------------------------------------------------------------------------------
-; todo: print how much time did it take from human to make a move
-;-------------------------------------------------------------------------------
+tst -(sp)
+mov wTime, -(sp)
+sub tcounter, (sp) ; r0 will contain how much seconds left in decimal.
+jsr pc, asciConv
+tst (sp)+ ; popping time decimal value.
+jsr pc, printStr
+tst (sp)+
+movb #'., @#tpb ;Prints dot.
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
+mov r0, -(sp)
+mov r1, -(sp)
+clr r0
+mov rate, r1
+sub msctr, r1
+div rate, r0
+mov r1, -(sp)
+mov 2(sp), r1
+mov 4(sp), r0
+mov (sp)+, (sp)
+jsr pc, asciConv
+tst (sp)+ ; popping time decimal value.
+jsr pc, printStr
+tst (sp)+
+zibby:
+movb #'\s, @#tpb ;Prints dot.
+tstb @#tps ;Busy wait, wait till end of print.
 mov #secStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -885,14 +1006,16 @@ jmp noCom
 ;                           Clock interrupt
 ;-------------------------------------------------------------------------------
 clock:
+dec msctr
+tst msctr
+beq .+4
+rti
 dec tcounter
 tst tcounter
-beq timeUp
+beq .+12
+mov rate, msctr
 rti
-timeUp:
-
 mov #1, TIMOUT
-
 rti
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -965,6 +1088,7 @@ beq newline
 movb @2(sp), @#tpb ;Print char.
 inc 2(sp) ; Move to the next char.
 br printStr
+newline:
 tstb @#tps ;Busy wait, wait till end of print.
 bpl .-4
 movb #'\r, @#tpb ;Prints carrige return.
@@ -983,6 +1107,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printdol:
 ; Printing "$"
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #dollar, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -994,6 +1120,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printHmn:
 ; Printing "Human "
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #hmn, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1005,6 +1133,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printPC:
 ; Printing "Computer "
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #computer, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1016,17 +1146,51 @@ rts pc
 ;-------------------------------------------------------------------------------
 printSPM:
 ; Printing " seconds per move\r"
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #secpermov, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+;-------------------------------------------------------------------------------
+;                                asciConv
+;-------------------------------------------------------------------------------
+;Input:
+;Time decimal value - will be at 2 sp.
+;Output:
+;Pointer to time left string to print - will be at 4 sp.
+asciConv:
+mov r0, -(sp)
+mov r1, -(sp)
+mov r2, -(sp)
+clr r0
+mov #timelstr, r2
+add #7, r2 ; r2 will point to the end of time left str.
+mov 8.(sp), r1 ; Moving time decimal value to r1
+keepdiv:
+div #10., r0
+add #60, r1 ; converting to ascii.
+movb r1, -(r2) ; putting remainder in the end of the string.
+tst r0 ; Checking if we still have more digits.
+beq endconv
+mov r0, r1
+clr r0
+br keepdiv
+endconv:
+mov r2, 10.(sp)
+mov (sp)+, r2
+mov (sp)+, r1
+mov (sp)+, r0
+rts pc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;-------------------------------------------------------------------------------
 ;                                printBPI
 ;-------------------------------------------------------------------------------
 printBPI:
 ; Printing "Black player is "
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #Bplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1038,6 +1202,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printWPI:
 ; Printing "White player is "
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #Wplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1049,6 +1215,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printBPT:
 ; Printing how much time the black player has to move
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #bTimeStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1060,6 +1228,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printWHT:
 ; Printing: "White "
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #Wht, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1071,6 +1241,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printBLK:
 ; Printing: "Black "
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #Blk, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1082,6 +1254,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printWPT:
 ; Printing how much time the black player has to move
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #wTimeStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1093,6 +1267,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printNL:
 ; Printing new line
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #nlfeed, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1104,6 +1280,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printMT:
 ; Printing: 'move took '
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #movStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1118,6 +1296,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printBL:
 ; Printing 'Board layout:\r'
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #boardlay, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1143,6 +1323,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printWCP:
 ; Printing: 'Current Player: White'
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #CPStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1170,6 +1352,8 @@ rts pc
 ;                                printWP
 ;-------------------------------------------------------------------------------
 printWP:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov r0, -(sp)
 mov r1, -(sp)
 clr r0
@@ -1206,6 +1390,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 printBCP:
 ; Printing: 'Current Player: black'
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 mov #CPStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1232,6 +1418,8 @@ rts pc
 ;                                printWin
 ;-------------------------------------------------------------------------------
 printWin:
+tstb @#tps ;Busy wait, wait till end of print.
+bpl .-4
 tst WinParam
 beq isTie
 tst WinParam
@@ -1483,13 +1671,11 @@ rts pc ; Returning to main.
 getWPRec:
 ; ----- STOP TERMS -----
 tst gameOn
-bne keepon
+bne .+4
 rts pc
-keepon:
 tst TIMOUT
-beq keepcalc
+beq .+4
 rts pc
-keepcalc:
 ; Preparing to call for checkWin with the last player to make a move:
 mov #Board, -(sp) ; Moving board adress to stack.
 ; Pushing the last player to make a move to stack.
@@ -2295,13 +2481,11 @@ cntloop:
 tst (r0) ;
 beq endloop ; if (r0) is 0 then no player in this cell.
 cmp (r0), #1
-bne addBLK
+bne .+6
 inc r1 ; Current cell is white. r1++ .
 br endloop ; Go to next cell.
-addBLK:
 inc r2 ; Current cell is black. r2++ .
 jmp endloop ; Go to next cell.
-
 endloop:
 add #2, r0 ; r0 will point to next cell in the board.
 cmp r0,r3
@@ -2544,7 +2728,7 @@ br canMove ;Found a legal move.
 ;                             END OF FUNCTIONS
 ;==============================================================================
 
-.=torg + 15000
+.=torg + 17000
 command: .blkw 25.
 pointer: .blkw 1
 curChar: .byte 1
@@ -2576,6 +2760,7 @@ bTimePtr: .word 0
 .even
 TIMOUT:.word 0
 tcounter:.word 0
+msctr:.word 0
 
 ;========================================================================
 ;                            STRINGS
@@ -2606,6 +2791,8 @@ wplyris: .ascii<white\splayer\sis\s\0>
 bplyris: .ascii<black\splayer\sis\s\0>
 WPfor: .ascii<WP\sfor\s\0>
 playerWin: .ascii<player\swins!\r>
+timelstr: .ascii<\0\0\0\0\0\0\0\0>
+tlefstr: .ascii <Time\sLeft:\s\0>
 
 .even
 Board:.word	0,	0,	0,	2,	0,	0,	0,	2
