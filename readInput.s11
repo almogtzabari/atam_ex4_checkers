@@ -683,6 +683,15 @@ moveCom:
 ; The command is 'move'
 cmp gameOn, #0
 beq jnoCom1
+cmp #1, turn
+beq chkwht
+;player is black.
+cmp #2, bPlayer
+beq jnoCom1
+br .+12
+chkwht:
+cmp #2, wPlayer
+beq jnoCom1
 cmpb  #' , @pointer
 bne continue
 inc pointer ; Skipping spaces.
