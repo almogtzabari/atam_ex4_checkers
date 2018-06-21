@@ -82,6 +82,8 @@ jmp cont1
 
 whitTurj: jmp whitTurn
 
+endGBj: jmp endGameB
+
 bCpu:
 ;Call recursive function.
 mov #source, -(sp)
@@ -99,6 +101,8 @@ add #4, sp ;Popping source and dest.
 mov #0, TIMOUT
 mov #0, @#lcs
 jsr pc, chgTurn
+jsr pc, printNL ; Printing new line
+jsr pc, printNL ; Printing new line
 jsr pc, printBLK
 jsr pc, printPC
 jsr pc, printMT ; Printing: 'move took '
@@ -126,7 +130,6 @@ tst (sp)+
 jsr pc, printB ; Print board.
 jmp cont1
 
-endGBj: jmp endGameB
 
 endGWj: jmp endGameW
 
@@ -187,6 +190,8 @@ add #4, sp ;Popping source and dest.
 mov #0, TIMOUT
 mov #0, @#lcs
 jsr pc, chgTurn
+jsr pc, printNL ; Printing new line
+jsr pc, printNL ; Printing new line
 jsr pc, printWHT
 jsr pc, printPC
 jsr pc, printMT ; Printing: 'move took '
