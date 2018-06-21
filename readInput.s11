@@ -1084,13 +1084,12 @@ movPiece:
  mov (sp), r1 ; r1 = eaten cell address.
  div #2, r0 ; r1 will hold the remainer.
  cmp r1, #0 ;
- bne endmop ; if the remainer is not zero there was no eat. goto endmop.
+ bne .+10 ; if the remainer is not zero there was no eat. goto restore registers.
  ; If we got here then the remainer is zero. it means that there was an
  ; eat and we need to put 0 in the eaten place.
  ; Notice that the eaten cell address is at sp.
  mov #0, @(sp)
 ; Method is done. Restoring registers.
-endmop:
 tst (sp)+ ; popping the eaten cell address (no longer needed).
 mov (sp)+, r0 ; Restoring value of r0.
 mov (sp)+, r3 ; Restoring value of r4.
@@ -1588,6 +1587,8 @@ mov (sp)+, r0 ; r0 contains the output for checkwin
 add #4, sp
 cmp #1, r0
 beq CurPW ; Current Player win
+cmp #2, r0
+beq tiegover ; Tie, Game Over
 ; Current player didn't win. Lets check win for the other player.
 mov #3, r0
 sub turn, r0
@@ -1597,18 +1598,19 @@ tst -(sp) ; Place for output
 jsr pc, checkWin
 mov (sp)+, r0 ; r0 contains the output for checkwin
 add #4, sp
-cmp #1, r0
-bne NoWinner
+cmp #-1., r0
+beq NoWinner
+cmp #2, r0
+beq tiegover ; Tie, Game Over
 ; Opposite player win
 cmp turn, #1
-beq BPW
+beq .+14 ; Black player wins
 br WPW
 
 CurPW:
 cmp turn, #1
 beq WPW ; White Player Win
 ; Black Player Win
-BPW:
 mov #0, gameOn
 jsr pc, printBLK
 mov #playerWin, -(sp)
@@ -1625,6 +1627,14 @@ NoWinner:
 jsr pc, printNL
 mov (sp)+, r0 ; Restoring r0
 rts pc
+
+tiegover:
+mov #0, gameOn ; Stopping the game
+mov #0, @#lcs ; Stopping clock
+mov #itsATie, -(sp)
+jsr pc, printStr
+tst (sp)+
+br NoWinner
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -2169,6 +2179,8 @@ tst (sp) ; Checks if both players has legal moves to make.
 bne hasMoves ; One of the players still has moves to make.
 tst (sp)+ ; Pops number of player's moves.
 tst (sp)+ ; Pops player number.
+cmp (sp), 2(sp)
+beq tieGOver ; Tie, game over.
 cmp #1, 10(sp) ; Checks if the player is the white player.
 bne blackChk ; The player is the black player.
 cmp 2(sp), (sp) ; Checks if number of white pieces is bigger than number of black pieces.
@@ -2178,6 +2190,12 @@ blackChk: ; The current player color is black.
 cmp (sp), 2(sp) ; Checks if number of black pieces is bigger than number of white pieces.
 bgt currWin ; Black player wins.
 br noWin ; Black player lost.
+
+tieGOver:
+tst (sp)+ ; Pop number of black pieces.
+tst (sp)+ ; Pop number of white pieces.
+mov #2, 2(sp)
+rts pc
 
 currWin: ; The current player wins.
 tst (sp)+ ; Pop number of black pieces.
@@ -2389,13 +2407,13 @@ beq chngMinB ; Changing maximum to minimum.
 ; If we got here in the next REC we will check for maximum
 mov #-100., -(sp) ; Miminum was checked in the last call.
 mov #1, -(sp) ; Maximum will be checked.
-br changedB
+br .+12
 
 chngMinB: ; Changing maximum to minimum.
 mov #100., -(sp) ; Maximum was checked in the last call.
 mov #-1., -(sp) ; Minimum will be checked.
 
-changedB: ; Changed maximum\minimum value.
+; Changed maximum\minimum value.
 mov #3, -(sp)
 sub 30.(sp), (sp) ; Changing to the other player.
 mov 28.(sp), -(sp) ; Copying last number of steps.
@@ -2816,6 +2834,7 @@ WPfor: .ascii<WP\sfor\s\0>
 playerWin: .ascii<player\swins!\r>
 timelstr: .ascii<\0\0\0\0\0\0\0\0>
 tlefstr: .ascii <Time\sLeft:\s\0>
+itsATie: .ascii <It's\sa\stie!\sGame\sover.\r>
 
 .even
 Board:.word	0,	0,	0,	2,	0,	0,	0,	2
@@ -2836,5 +2855,6 @@ NewBoard:
 	.word	1,	0,	1,	0,	1,	0,	1,	0
 	.word	0,	1,	0,	1,	0,	1,	0,	1
 	.word	1,	0,	1,	0,	1,	0,	1,	0
+
 
 rate: .word 60.
