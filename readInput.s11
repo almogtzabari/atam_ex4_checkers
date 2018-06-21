@@ -45,6 +45,7 @@ jsr pc, printBCP ; Printing black current player
 jsr pc, printNL ; Printing new line
 jsr pc, printdol ; Printing $ if needed
 mov bTime, tcounter
+dec tcounter
 mov rate, msctr
 mov #100, @#lcs ;Clock is on.
 cmpb #1, bPlayer
@@ -138,6 +139,7 @@ jsr pc, printWCP ; Printing white current player
 jsr pc, printNL ; Printing new line
 jsr pc, printdol ; Printing $ if needed
 mov wTime, tcounter
+dec tcounter
 mov rate, msctr
 mov #100, @#lcs ;Clock is on.
 cmpb #1, wPlayer
