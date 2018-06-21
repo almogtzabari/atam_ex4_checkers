@@ -403,8 +403,6 @@ tst (sp)+
 mov #command, pointer
 mov #errorCom, errPtr
 cpyErr:
-cmpb  #' , @pointer
-beq donecpy
 cmpb  #0 , @pointer
 beq donecpy
 movb @pointer, @errPtr
