@@ -31,7 +31,7 @@ bne cont1
 mov #1, putDolar
 jsr pc, printdol ; Printing $ if needed
 cont1:
-cmp gameOn, #1
+cmp gameOn, #1 ; If the game is not on, wait till it's on.
 bne cont1
 ; Game is on
 jsr pc, chkwins ; Checks if someone won.
@@ -44,16 +44,16 @@ jsr pc, printBCP ; Printing black current player
 jsr pc, printNL ; Printing new line
 jsr pc, printdol ; Printing $ if needed
 mov bTime, tcounter ; Setting the clock time to black player's time.
-dec tcounter
-mov rate, msctr
+dec tcounter ; Decreasing the number of seconds by 1 becuase mili seconds counter will contain 1 second.
+mov rate, msctr ; Rate will contain the number of clock interrupts per second so msctr will contain this number.
 mov #100, @#lcs ;Clock is on.
 cmpb #1, bPlayer ; Checking whether black player is human or computer.
 bne bCpu
 ;Black player is Human
 BHmnTrn: ; Black human turn
 tst gameOn
-beq endGBj
-cmp #0, TIMOUT
+beq endGBj ; If game on is 0 , game ended calculate wp for black player, and check who wins.
+cmp #0, TIMOUT ; Checks if time ended for black player.
 beq BHmnTrn ; Waiting for command from user while time is not ended.
 cmp #-1., TIMOUT ; Checks if user already made a move.
 beq BHTend ; Black Human Turn End
@@ -61,23 +61,23 @@ beq BHTend ; Black Human Turn End
 jsr pc, printNL ; Printing new line
 jsr pc, printNL ; Printing new line
 mov #Blk, -(sp)
+jsr pc, printStr ; Prints "Black ".
+tst (sp)+
+mov #hmn, -(sp) ; Prints "Human ".
 jsr pc, printStr
 tst (sp)+
-mov #hmn, -(sp)
+mov #gameOver, -(sp) ; Prints " is out of time. Game Over."
 jsr pc, printStr
 tst (sp)+
-mov #gameOver, -(sp)
-jsr pc, printStr
-tst (sp)+
-jsr pc, printNL
+jsr pc, printNL ; Prints a new line.
 ;-------------------------------------------------------------------------------
-mov #0, TIMOUT
-mov #0, @#lcs
+mov #0, TIMOUT ;Sets time out back to 0.
+mov #0, @#lcs ; Turns off clock interrupts.
 mov #0, gameOn ; Game End
-jmp w
+jmp w ; Go to w, and wait till game on will be 1.
 BHTend:
 ; Black Human Turn End
-mov #0, TIMOUT
+mov #0, TIMOUT ; Sets time out to 0.
 jmp cont1
 
 whitTurj: jmp whitTurn
@@ -85,47 +85,47 @@ whitTurj: jmp whitTurn
 endGBj: jmp endGameB
 
 bCpu:
-;Call recursive function.
-mov #source, -(sp)
-mov #dest, -(sp)
-mov #WinParam, -(sp)
+;Setting stack for recursive call.
+mov #source, -(sp) ;Source will contain the address of the best move source position.
+mov #dest, -(sp) ;dest will contain the address of the best move destenation position.
+mov #WinParam, -(sp) ; WinParam will contain the WP of the best move found.
 mov #1, Steps ; Setting steps to 1.
-jsr pc, getMaxWP
-add #6, sp
-tst gameOn
-beq endGBj
-mov source, -(sp)
-mov dest, -(sp)
-jsr pc, movPiece
+jsr pc, getMaxWP ; Calling recursive function.
+add #6, sp ; Popping source, dest, and WinParam labels from the stack.
+tst gameOn ; Checks if game is on, if game is still on update board, source, dest and WinParam.
+beq endGBj ; If game on is 0, jump to end game for black player.
+mov source, -(sp) ;Moves the best move source adress to the stack.
+mov dest, -(sp) ;Moves the best move destenation adress to the stack.
+jsr pc, movPiece ; Updating board.
 add #4, sp ;Popping source and dest.
-mov #0, TIMOUT
-mov #0, @#lcs
-jsr pc, chgTurn
+mov #0, TIMOUT ; Sets timeout to 0.
+mov #0, @#lcs ; Turn off clock interrupts.
+jsr pc, chgTurn ; Change turn.
 jsr pc, printNL ; Printing new line
 jsr pc, printNL ; Printing new line
-jsr pc, printBLK
-jsr pc, printPC
+jsr pc, printBLK ; Prints 'Black '
+jsr pc, printPC ; Prints computer.
 jsr pc, printMT ; Printing: 'move took '
 tst -(sp)
 mov bTime, -(sp)
-jsr pc, asciConv
+jsr pc, asciConv ; Converts time to ascii values for time print.
 tst (sp)+ ; popping time decimal value.
-jsr pc, printStr
+jsr pc, printStr ; Prints the number of seconds took for black computer move.
 tst (sp)+
 movb #'., @#tpb ; sending char to print
 tstb @#tps
-bpl .-4
+bpl .-4 ;Busy wait, wait till end of print.
 movb #'0, @#tpb ; sending char to print
 tstb @#tps
-bpl .-4
+bpl .-4 ;Busy wait, wait till end of print.
 movb #'\s, @#tpb ; sending char to print
 tstb @#tps
-bpl .-4
+bpl .-4 ;Busy wait, wait till end of print.
 mov #secStr, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints ' seconds'
 tst (sp)+
 mov #dotStr, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints '.'.
 tst (sp)+
 jsr pc, printB ; Print board.
 jmp cont1
@@ -137,15 +137,15 @@ whitTurn:
 jsr pc, printWCP ; Printing white current player
 jsr pc, printNL ; Printing new line
 jsr pc, printdol ; Printing $ if needed
-mov wTime, tcounter
-dec tcounter
-mov rate, msctr
+mov wTime, tcounter ; Setting the clock time to white player's time.
+dec tcounter ; Decreasing the number of seconds by 1 because mili seconds counter will contain 1 second.
+mov rate, msctr ; Rate will contain the number of clock interrupts per second so msctr will contain this number.
 mov #100, @#lcs ;Clock is on.
-cmpb #1, wPlayer
-bne wCpu
+cmpb #1, wPlayer ;Checks if the player is human or computer.
+bne wCpu ; If player is computer branch to wCpu.
 ;White player is human
 WHmnTrn: ; White human turn
-tst gameOn
+tst gameOn ; If game on is 0 , game ended calculate wp for black player, and check who wins.
 beq endGWj
 cmp #0, TIMOUT
 beq WHmnTrn
