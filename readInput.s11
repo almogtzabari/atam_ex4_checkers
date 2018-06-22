@@ -3,7 +3,7 @@ tkb = 177562
 tps = 177564
 tpb = 177566
 lcs = 177546
-asciimask = 177760
+asciimask = 177760 ; Will be used to convert ascii to number
 
 .=torg + 60
 .word rInput
@@ -19,12 +19,13 @@ main:
 mov pc, sp
 tst -(sp)
 mov #welcome, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints welcome message.
 tst (sp)+
 jsr pc, printNL ; Printing new line
 mov #command, pointer
 mov #101,@#tks ; keyboard interrupt = 1 && RE = 1
 w:
+; Printing $ if needed
 cmp putDolar, #0
 bne cont1
 mov #1, putDolar
@@ -33,30 +34,28 @@ cont1:
 cmp gameOn, #1
 bne cont1
 ; Game is on
-;-------------------------------------------------------------------------------
-jsr pc, chkwins
+jsr pc, chkwins ; Checks if someone won.
 tst gameOn ; If someone won then gameOn will be 0.
 beq w
-;-------------------------------------------------------------------------------
-cmp turn, #1
+cmp turn, #1 ; Checking whose turn is it.
 beq whitTurj
 ; Black player's turn
 jsr pc, printBCP ; Printing black current player
 jsr pc, printNL ; Printing new line
 jsr pc, printdol ; Printing $ if needed
-mov bTime, tcounter
+mov bTime, tcounter ; Setting the clock time to black player's time.
 dec tcounter
 mov rate, msctr
 mov #100, @#lcs ;Clock is on.
-cmpb #1, bPlayer
+cmpb #1, bPlayer ; Checking whether black player is human or computer.
 bne bCpu
 ;Black player is Human
 BHmnTrn: ; Black human turn
 tst gameOn
 beq endGBj
 cmp #0, TIMOUT
-beq BHmnTrn
-cmp #-1., TIMOUT
+beq BHmnTrn ; Waiting for command from user while time is not ended.
+cmp #-1., TIMOUT ; Checks if user already made a move.
 beq BHTend ; Black Human Turn End
 ; Time is up - Game over.
 jsr pc, printNL ; Printing new line
