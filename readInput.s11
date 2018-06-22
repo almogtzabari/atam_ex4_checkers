@@ -1289,7 +1289,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printBL
 ;-------------------------------------------------------------------------------
-; This method will print "Board layout " and the playing board.
+; This method will print "Board layout ".
 printBL:
 mov #boardlay, -(sp)
 jsr pc, printStr
@@ -1460,8 +1460,8 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printB
 ;-------------------------------------------------------------------------------
+; This method will print the playing board.
 printB:
-; Printing board
 jsr pc, printNL ; Printing new line
 jsr pc, printNL ; Printing new line
 jsr pc, printNL ; Printing new line
@@ -1469,14 +1469,14 @@ jsr pc, printBL ; Printing 'Board layout:\r'
 mov r0, -(sp) ; Backing up r0.
 mov r1, -(sp) ; Backing up r1.
 mov r2, -(sp) ; Backing up r2.
-mov #8., r2
+mov #8., r2 ; R2 will be initialized with 8 (number of words to print per row).
 mov #Board, r1
-add #128., r1
+add #128., r1 ; r1 will contain the adress of the end of the playing board.
 mov #Board, r0
 Ploop:
 cmp r0, r1
 beq endP
-tst r2 ; R2 will be initialized with 8 (number of words to print per row).
+tst r2
 bne conP
 mov #8., r2
 jsr pc, printNL ; Printing new line
@@ -1602,17 +1602,6 @@ jsr pc, printStr
 tst (sp)+
 br NoWinner
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-
-
-
-
-
-
-
-
 
 
 ;-------------------------------------------------------------------------------
