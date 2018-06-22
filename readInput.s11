@@ -70,7 +70,6 @@ mov #gameOver, -(sp) ; Prints " is out of time. Game Over."
 jsr pc, printStr
 tst (sp)+
 jsr pc, printNL ; Prints a new line.
-;-------------------------------------------------------------------------------
 mov #0, TIMOUT ;Sets time out back to 0.
 mov #0, @#lcs ; Turns off clock interrupts.
 mov #0, gameOn ; Game End
@@ -81,7 +80,6 @@ mov #0, TIMOUT ; Sets time out to 0.
 jmp cont1
 
 whitTurj: jmp whitTurn
-
 endGBj: jmp endGameB
 
 bCpu:
@@ -130,7 +128,6 @@ tst (sp)+
 jsr pc, printB ; Print board.
 jmp cont1
 
-
 endGWj: jmp endGameW
 
 whitTurn:
@@ -165,7 +162,6 @@ jsr pc, printStr ; Prints " is out of time. Game Over."
 tst (sp)+
 jsr pc, printNL ; Prints new line.
 
-;-------------------------------------------------------------------------------
 mov #0, TIMOUT ; Sets time out back to 0.
 mov #0, @#lcs ; Turs off clock interrupts.
 mov #0, gameOn ; Game End.
@@ -266,8 +262,7 @@ jsr pc, printWin ; Prints winning message or tie message.
 jsr pc, printNL ; Prints new line.
 jmp w
 
-; Read input - keyboard interrupt function.
-rInput:
+rInput: ; Read input - keyboard interrupt function.
 movb @#tkb, curChar ;Moving entered char from tkb to curChar.
 ; Check if we reached the end of the command
 mov r0, -(sp) ; Backing up r0
@@ -318,6 +313,7 @@ bpl .-4 ;Busy wait, wait till end of print.
 inc @#tks ; RE = 1
 mov (sp)+, r0 ; Restoring r0
 rti
+
 ignore:
 mov (sp)+, r0 ; Restoring r0
 inc @#tks ; RE = 1
@@ -360,7 +356,6 @@ inc pointer ; Pointer will now point to the sixth char in #command.
 cmpb #' , @pointer ;Checks if the char that was entered after 'start' was ' '.
 bne noCom ;If the char that was entered after 'start' wasn't ' ' the command is illegal.
 jmp startCom ; 'start ' was entered.
-
 
 tCom:
 ; If we got here we had 't'
@@ -429,7 +424,7 @@ rts pc ; return from decode
 ;-------------------------------------------------------------------------------
 startCom:
 cmp gameOn, #0
-bne jnoCom ; If game is on 'start' is illegal command.
+bne noCom ; If game is on 'start' is illegal command.
 inc pointer
 cmpb  #' , @pointer
 beq startCom ; skipping spaces
@@ -519,9 +514,7 @@ bne jnoCom
 dec pointer ; Move pointer to the previous char in #command (used to skip spaces).
 jmp setbTime ; Player is set, move to time set.
 
-
                   jnoCom: jmp noCom
-
 setbTime:
 mov #0, bTime ; Reset black time.
 inc pointer ; Move to the next char in #command.
@@ -552,7 +545,6 @@ blt startChk ; jumps if not a number
 cmpb @pointer, #'9
 bgt startChk ; jumps if not a number
 jmp rdBTime ; If the next char is also a number char repeat rdWBTime.
-
 
 startChk:
 cmpb @pointer, #0 ;Check if reached the on of the command.
@@ -616,9 +608,7 @@ jsr pc, initBoard ; Initializing the board
 jsr pc, printB ; Printing the board
 rts pc ; Return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
                             jnoCom1: jmp noCom
-
 ;-------------------------------------------------------------------------------
 ;                           Command is 'stop'
 ;-------------------------------------------------------------------------------
@@ -677,7 +667,6 @@ jsr pc, printNL ; Prints new line.
 jsr pc, printNL ; Prints new line.
 jsr pc, printdol ; Prints dollar.
 rts pc ; Return from decode
-
 ;-------------------------------------------------------------------------------
 ;                           Command is 'move'
 ;-------------------------------------------------------------------------------
@@ -907,8 +896,7 @@ cmp dest, r1 ; Checks if the lower right cell == dest.
 beq destFound ; If dest is the lower right cell , the move is legal, branch to dest found.
 jmp badIdxj ;No more moving options, dest wasn't found , dest is illegal board adress.
 
-badIdxju:
-jmp badIdx
+badIdxju: jmp badIdx
 
 eatrbmv:
 sub #1, r5 ; Reducing column index by 1.
@@ -925,7 +913,6 @@ add #28., r1 ; r1 will contain the adress of the lower right cell (after eating)
 cmp dest, r1 ; Checks if the lower right cell (after eating) == dest.
 beq destFound ; If dest is the lower right cell (after eating), the move is legal, branch to dest found.
 jmp badIdxj ;No more moving options, dest wasn't found , dest is illegal board adress.
-
 
 destFound:
 ; If we got here , source and desteation index were legal.
@@ -1032,16 +1019,16 @@ jmp noCom ; Source/dest is not legal, jump to no command.
 ;                           Clock interrupt
 ;-------------------------------------------------------------------------------
 clock:
-dec msctr
-tst msctr
-beq .+4
+dec msctr ;msctr will contain the number of clock interrupts in a second.
+tst msctr ; If msctr == 0 a second passed.
+beq .+4 ; If a second passed check seconds left.
 rti
-dec tcounter
-tst tcounter
-beq .+12
-mov rate, msctr
+dec tcounter ; A second passed, decrease seconds counter by 1.
+tst tcounter ; Check if tcounter == 0 (seconds left == 0).
+beq .+12 ;If no seconds left, set timeout to 1.
+mov rate, msctr ; Seconds left > 0 , set msctr to the number of clock interrupts in a second.
 rti
-mov #1, TIMOUT
+mov #1, TIMOUT ; No seconds left, set timeout to 1.
 rti
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1095,14 +1082,20 @@ movPiece:
 ; Method is done. Restoring registers.
 tst (sp)+ ; popping the eaten cell address (no longer needed).
 mov (sp)+, r0 ; Restoring value of r0.
-mov (sp)+, r3 ; Restoring value of r4.
-mov (sp)+, r1 ; Restoring value of r3.
+mov (sp)+, r3 ; Restoring value of r3.
+mov (sp)+, r1 ; Restoring value of r1.
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
 ;                                PrintStr
 ;-------------------------------------------------------------------------------
+; This method will print a string. If '\r' is found at the end of the
+; string a new line will be printed.
+;
+; Input:
+; String adress - will be stored at 2(sp).
+
 printStr:
 cmpb #'\0, @2(sp) ; Check if reached end of string.
 beq sof
@@ -1112,22 +1105,22 @@ movb @2(sp), @#tpb ;Print char.
 inc 2(sp) ; Move to the next char.
 br printStr
 newline:
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
+tstb @#tps
+bpl .-4  ;Busy wait, wait till end of print.
 movb #'\r, @#tpb ;Prints carrige return.
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
+tstb @#tps
+bpl .-4  ;Busy wait, wait till end of print.
 movb #'\n, @#tpb ; Prints a new line.
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
 sof:
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
 ;-------------------------------------------------------------------------------
 ;                                printdol
 ;-------------------------------------------------------------------------------
+; This method will print '$'.
 printdol:
 mov #dollar, -(sp)
 jsr pc, printStr
@@ -1138,6 +1131,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printHmn
 ;-------------------------------------------------------------------------------
+; This method will print 'Human '.
 printHmn:
 mov #hmn, -(sp)
 jsr pc, printStr
@@ -1148,6 +1142,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printPC
 ;-------------------------------------------------------------------------------
+; This method will print 'Computer '.
 printPC:
 mov #computer, -(sp)
 jsr pc, printStr
@@ -1158,6 +1153,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printSPM
 ;-------------------------------------------------------------------------------
+; This method will print ' seconds per move '.
 printSPM:
 mov #secpermov, -(sp)
 jsr pc, printStr
@@ -1167,39 +1163,43 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                asciConv
 ;-------------------------------------------------------------------------------
+; This method will convert decimal time to a string and save the ascii values
+; of each digit starting from the end of #timelstr. Starting from the end is
+; made in order to print the digits in the correct order.
+
 ;Input:
 ;Time decimal value - will be at 2 sp.
 ;Output:
 ;Pointer to time left string to print - will be at 4 sp.
 asciConv:
-mov r0, -(sp)
-mov r1, -(sp)
-mov r2, -(sp)
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
+mov r2, -(sp) ; Backing up r2.
 clr r0
 mov #timelstr, r2
-add #7, r2 ; r2 will point to the end of time left str.
+add #7, r2 ; r2 will point to (end of timelstr)-1. The last char will be '0'.
 mov 8.(sp), r1 ; Moving time decimal value to r1
 keepdiv:
-div #10., r0
-add #60, r1 ; converting to ascii.
-movb r1, -(r2) ; putting remainder in the end of the string.
+div #10., r0 ; Dividing the number by 10, the remainder will be at r1.
+add #60, r1 ; converting the digit to ascii.
+movb r1, -(r2) ;r2 will point one byte backwards in #timelstr and the converted digit will be put there.
 tst r0 ; Checking if we still have more digits.
-beq endconv
-mov r0, r1
+beq endconv ; If r0 == 0 stop dividing.
+mov r0, r1 ; Move the quotient to r1.
 clr r0
-br keepdiv
+br keepdiv ; Keep on dividing.
 endconv:
-mov r2, 10.(sp)
-mov (sp)+, r2
-mov (sp)+, r1
-mov (sp)+, r0
+mov r2, 10.(sp) ; Move the pointer to the converted number to the place for output.
+mov (sp)+, r2 ; Restoring value of r2.
+mov (sp)+, r1 ; Restoring value of r1.
+mov (sp)+, r0 ; Restoring value of r0.
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;-------------------------------------------------------------------------------
 ;                                printBPI
 ;-------------------------------------------------------------------------------
+; This method will print "Black player is " .
 printBPI:
-; Printing "Black player is "
 mov #Bplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1209,6 +1209,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printWPI
 ;-------------------------------------------------------------------------------
+; This method will print "White player is " .
 printWPI:
 mov #Wplyris, -(sp)
 jsr pc, printStr
@@ -1219,6 +1220,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printBPT
 ;-------------------------------------------------------------------------------
+; This method will print black player time.
 printBPT:
 mov #bTimeStr, -(sp)
 jsr pc, printStr
@@ -1229,6 +1231,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printWHT
 ;-------------------------------------------------------------------------------
+; This method will print "White ".
 printWHT:
 mov #Wht, -(sp)
 jsr pc, printStr
@@ -1239,6 +1242,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printBLK
 ;-------------------------------------------------------------------------------
+; This method will print "Black ".
 printBLK:
 mov #Blk, -(sp)
 jsr pc, printStr
@@ -1249,6 +1253,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printWPT
 ;-------------------------------------------------------------------------------
+; This method will print white player time.
 printWPT:
 mov #wTimeStr, -(sp)
 jsr pc, printStr
@@ -1259,6 +1264,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printNL
 ;-------------------------------------------------------------------------------
+; This method will print a new line.
 printNL:
 mov #nlfeed, -(sp)
 jsr pc, printStr
@@ -1269,6 +1275,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printMT
 ;-------------------------------------------------------------------------------
+; This method will print 'move took '.
 printMT:
 mov #movStr, -(sp)
 jsr pc, printStr
@@ -1282,6 +1289,7 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printBL
 ;-------------------------------------------------------------------------------
+; This method will print "Board layout " and the playing board.
 printBL:
 mov #boardlay, -(sp)
 jsr pc, printStr
@@ -1293,13 +1301,14 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                chgTurn
 ;-------------------------------------------------------------------------------
+; This method will change turn to the other player's turn.
 chgTurn:
 ; Changing turn
-mov r0, -(sp)
+mov r0, -(sp) ; Backing up r0.
 mov #3, r0
-sub turn, r0
-mov r0, turn
-mov (sp)+, r0
+sub turn, r0 ; r0 = 3 - turn = other player's turn.
+mov r0, turn ; Set turn to the next player's turn.
+mov (sp)+, r0 ; Restoring value of r0.
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
