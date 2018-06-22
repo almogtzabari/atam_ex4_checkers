@@ -5,11 +5,11 @@ tpb = 177566
 lcs = 177546
 asciimask = 177760 ; Will be used to convert ascii to number
 
-.=torg + 60
+.=torg + 60  ; Setting keyboard interrupt function and hardware preference to 4.
 .word rInput
 .word 200
 
-.=torg + 100
+.=torg + 100 ; Setting clock interrupt function and hardware preference to 6.
 .word clock
 .word 300
 
@@ -22,7 +22,7 @@ mov #welcome, -(sp)
 jsr pc, printStr ; Prints welcome message.
 tst (sp)+
 jsr pc, printNL ; Printing new line
-mov #command, pointer
+mov #command, pointer ; Pointer will hold command adress.
 mov #101,@#tks ; keyboard interrupt = 1 && RE = 1
 w:
 ; Printing $ if needed
@@ -147,176 +147,174 @@ bne wCpu ; If player is computer branch to wCpu.
 WHmnTrn: ; White human turn
 tst gameOn ; If game on is 0 , game ended calculate wp for black player, and check who wins.
 beq endGWj
-cmp #0, TIMOUT
-beq WHmnTrn
-cmp #-1., TIMOUT
+cmp #0, TIMOUT ; Checks if time is over for white human turn.
+beq WHmnTrn ; If time is not over, wait till a move is made or time will be over.
+cmp #-1., TIMOUT ; Checks if a move was made.
 beq WHTend ; White Human Turn End
 ; Time is up - Game over.
 jsr pc, printNL ; Printing new line
 jsr pc, printNL ; Printing new line
 mov #Wht, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'White ' .
 tst (sp)+
 mov #hmn, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'Human ' .
 tst (sp)+
 mov #gameOver, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints " is out of time. Game Over."
 tst (sp)+
-jsr pc, printNL
+jsr pc, printNL ; Prints new line.
 
 ;-------------------------------------------------------------------------------
-mov #0, TIMOUT
-mov #0, @#lcs
-mov #0, gameOn ; Game End
+mov #0, TIMOUT ; Sets time out back to 0.
+mov #0, @#lcs ; Turs off clock interrupts.
+mov #0, gameOn ; Game End.
 jmp w
 WHTend:
-mov #0, TIMOUT
+mov #0, TIMOUT ; A move was made, time out is -1, set it back to 0.
 jmp cont1
 
 wCpu:
-;Call recursive function.
-mov #source, -(sp)
-mov #dest, -(sp)
-mov #WinParam, -(sp)
+;Setting stack for recursive call.
+mov #source, -(sp) ;Source will contain the address of the best move source position.
+mov #dest, -(sp) ;dest will contain the address of the best move destenation position.
+mov #WinParam, -(sp) ; WinParam will contain the WP of the best move found.
 mov #1, Steps ; Setting steps to 1.
-jsr pc, getMaxWP
-add #6, sp
-tst gameOn
-beq endGWj
-mov source, -(sp)
-mov dest, -(sp)
-jsr pc, movPiece
+jsr pc, getMaxWP ; Calling recursive function.
+add #6, sp ; Popping source, dest, and WinParam labels from the stack.
+tst gameOn ; Checks if game is on, if game is still on update board, source, dest and WinParam.
+beq endGWj ; If game on is 0, jump to end game for white player.
+mov source, -(sp) ;Moves the best move source adress to the stack.
+mov dest, -(sp) ;Moves the best move destenation adress to the stack.
+jsr pc, movPiece ; Updating board.
 add #4, sp ;Popping source and dest.
-mov #0, TIMOUT
-mov #0, @#lcs
-jsr pc, chgTurn
+mov #0, TIMOUT ; Sets timeout to 0.
+mov #0, @#lcs ; Turn off clock interrupts.
+jsr pc, chgTurn ; Change turn.
 jsr pc, printNL ; Printing new line
 jsr pc, printNL ; Printing new line
-jsr pc, printWHT
-jsr pc, printPC
+jsr pc, printWHT ; Prints 'White '
+jsr pc, printPC ; Prints computer.
 jsr pc, printMT ; Printing: 'move took '
 tst -(sp)
 mov wTime, -(sp)
-jsr pc, asciConv
+jsr pc, asciConv  ;Converts time to ascii values for time print.
 tst (sp)+ ; popping time decimal value.
-jsr pc, printStr
+jsr pc, printStr ; Prints the number of seconds took for black computer move.
 tst (sp)+
 movb #'., @#tpb ; sending char to print
 tstb @#tps
-bpl .-4
+bpl .-4 ;Busy wait, wait till end of print.
 movb #'0, @#tpb ; sending char to print
 tstb @#tps
-bpl .-4
+bpl .-4 ;Busy wait, wait till end of print.
 movb #'\s, @#tpb ; sending char to print
 tstb @#tps
-bpl .-4
+bpl .-4 ;Busy wait, wait till end of print.
 mov #secStr, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints ' seconds'
 tst (sp)+
 mov #dotStr, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints '.'.
 tst (sp)+
-jsr pc, printB
+jsr pc, printB ; Print board.
 jmp cont1
 
 endGameW:
-mov #0, @#lcs
+; Game ended in white player's turn.
+mov #0, @#lcs ; Turn off clock interrupts.
 mov #WPfor, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'WP for ' .
 tst (sp)+
 mov #wplyris, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'White player is'.
 tst (sp)+
-mov r4, -(sp)
-mov #Board, -(sp)
-mov turn, -(sp)
-jsr pc, calcWP
-mov r4, WinParam
-add #4, sp
-mov (sp)+, r4
-jsr pc, printWP
-jsr pc, printNL
-jsr pc, printWin
-jsr pc, printNL
+; Setting stack for calcWP function.
+mov r4, -(sp) ; Backing up r4, which will contain the output of calcWP.
+mov #Board, -(sp) ; Moving board label to stack.
+mov turn, -(sp) ; Move current player's turn.
+jsr pc, calcWP ; Caculating wp for current player.
+mov r4, WinParam ; Moving WP calculated from r4 to WinParam.
+add #4, sp ; Popping #Board and turn from stack.
+mov (sp)+, r4 ; Restoring r4's value.
+jsr pc, printWP ; Prints calculated wp.
+jsr pc, printNL ; Prints new line.
+jsr pc, printWin ; Prints winning message or tie message.
+jsr pc, printNL ; Prints new line.
 jmp w
 
 endGameB:
-mov #0, @#lcs
+; Game ended in black player's turn.
+mov #0, @#lcs ; Turn off clock interrupts.
 mov #WPfor, -(sp)
+jsr pc, printStr ; Prints 'WP for ' .
+tst (sp)+
+mov #bplyris, -(sp) ; Prints 'Black player is'.
 jsr pc, printStr
 tst (sp)+
-mov #bplyris, -(sp)
-jsr pc, printStr
-tst (sp)+
-mov r4, -(sp)
-mov #Board, -(sp)
-mov turn, -(sp)
-jsr pc, calcWP
-mov r4, WinParam
-add #4, sp
-mov (sp)+, r4
-jsr pc, printWP
-jsr pc, printNL
-jsr pc, printWin
-jsr pc, printNL
+; Setting stack for calcWP function.
+mov r4, -(sp) ; Backing up r4, which will contain the output of calcWP.
+mov #Board, -(sp) ; Moving board label to stack.
+mov turn, -(sp) ; Move current player's turn.
+jsr pc, calcWP ; Caculating wp for current player.
+mov r4, WinParam ; Moving WP calculated from r4 to WinParam.
+add #4, sp ; Popping #Board and turn from stack.
+mov (sp)+, r4 ; Restoring r4's value.
+jsr pc, printWP ; Prints calculated wp.
+jsr pc, printNL ; Prints new line.
+jsr pc, printWin ; Prints winning message or tie message.
+jsr pc, printNL ; Prints new line.
 jmp w
 
-
-; Read input
+; Read input - keyboard interrupt function.
 rInput:
-movb @#tkb, curChar
-
+movb @#tkb, curChar ;Moving entered char from tkb to curChar.
 ; Check if we reached the end of the command
 mov r0, -(sp) ; Backing up r0
 mov #command, r0 ; Moving command string address to r0
-add #50., r0 ; Adding max length of string to r0.
+add #49., r0 ; Adding max length of string to r0.
 cmp pointer, r0 ; Checks if the command reached 50 chars.
-bgt ignore
+bgt ignore ; Ignore the input if command length is 50 or more.
 ; We have not reached the end of the command
 cmpb curChar, #'\r  ; checks if current char is ENTER
-beq endOfIpt
+beq endOfIpt ; If the current char is ENTER go to endOfIpt.
 cmpb #'\b, curChar  ; checks if current char is BackSpace
-beq backspace
+beq backspace ; If the char is backspace, delete last char.
 ; Current char is a neither ENTER nor BackSpace
-movb curChar, @pointer
-movb curChar, @#tpb ; sending char to print
+movb curChar, @pointer ;Save current char in command.
+movb curChar, @#tpb ; sending char to print.
 tstb @#tps
-bpl .-4
+bpl .-4 ;Busy wait, wait till end of print.
 ; curChar was printed
-inc pointer
+inc pointer ; Pointer will point the next available spot in command string.
 mov (sp)+, r0 ; Restores r0.
 inc @#tks ; RE = 1
 rti
 
 endOfIpt:
 jsr pc, printNL ; Printing new line
-movb #0, @pointer ; Adds linefeed to the command string.
+movb #0, @pointer ; Adds 0 to the command string.
 mov #command, pointer ; Pointer will point the beginning of the command
 mov (sp)+, r0 ; Restoring r0
 jsr pc, decode ; Decoding the command
 mov #command, pointer ; Pointer will point the beginning of the command
-mov #0, putDolar
+mov #0, putDolar ; Dollar should be printed.
 inc @#tks ; RE = 1
 rti
 
-
-
-
-
 backspace:
-cmp #command, pointer
-beq ignore
-dec pointer
-movb #'\b, @#tpb
+cmp #command, pointer ; Checks if the command reached 50 chars.
+beq ignore ; Ignore the input if command length is 50 or more.
+dec pointer ; Pointer will now point to the previous char.
+movb #'\b, @#tpb ; Moving cursor to the previous char.
 tstb @#tps
-bpl .-4
-movb #' , @#tpb
+bpl .-4 ;Busy wait, wait till end of print.
+movb #' , @#tpb ; Prints ' '.
 tstb @#tps
-bpl .-4
-movb #'\b, @#tpb
+bpl .-4 ;Busy wait, wait till end of print.
+movb #'\b, @#tpb ; Moving cursor to the previous char.
 tstb @#tps
-bpl .-4
+bpl .-4 ;Busy wait, wait till end of print.
 inc @#tks ; RE = 1
 mov (sp)+, r0 ; Restoring r0
 rti
@@ -326,101 +324,103 @@ inc @#tks ; RE = 1
 rti
 
 decode:
-cmpb @pointer, #'s
-beq sCom
-cmpb @pointer, #'t
-beq tCom
-cmpb @pointer, #'m
-beq mCom
-jmp noCom
+cmpb @pointer, #'s ; Checks if the first char that was entered was 's'.
+beq sCom ; Branch to s command.
+cmpb @pointer, #'t ; Checks if the first char that was entered was 't'.
+beq tCom ; Branch to t command.
+cmpb @pointer, #'m ; Checks if the first char that was entered was 'm'.
+beq mCom ; Branch to m command.
+jmp noCom ; The first  wasn't: 's', 't', or 'm' so it's an illegal command.
 
 sCom:
-inc pointer
-cmpb @pointer, #'t
-bne noCom
-inc pointer
-cmpb @pointer, #'a
-beq staCom
-cmpb @pointer, #'o
-bne noCom
+;The first char that was entered was the letter s.
+inc pointer ; Pointer will now point to the second char in #command.
+cmpb @pointer, #'t ; Checks if the second char that was entered was 't'.
+bne noCom ; The second char that was entered wasn't 't' so it's an illegal command.
+inc pointer ; Pointer will now point to the third char in #command.
+cmpb @pointer, #'a ; Checks if the third char that was entered was 'a'.
+beq staCom ; The three chars that were entered were 's', 't', 'a', branch to stacom to check if 'start' was entered.
+cmpb @pointer, #'o ; Checks if the third char that was entered was 'o'.
+bne noCom ; The third char that was entered wasn't 'a' or 'o' so it's an illegal command.
 ; If we got here we had the sequence 'sto'
-inc pointer
-cmpb @pointer, #'p
-bne noCom
-jmp stopCom
+inc pointer ; Pointer will now point to the fourth char in #command.
+cmpb @pointer, #'p ; Checks if the fourth char that was entered was 'p'.
+bne noCom ; The fourth char that was entered wasn't 'p' so it's an illegal command.
+jmp stopCom ; 'stop' was entered.
 
 staCom:
 ; If we got here we had the sequence 'sta'
-inc pointer
-cmpb @pointer, #'r
-bne noCom
-inc pointer
-cmpb @pointer, #'t
-bne noCom
-inc pointer
-cmpb #' , @pointer
-bne noCom
-jmp startCom
+inc pointer ; Pointer will now point to the fourth char in #command.
+cmpb @pointer, #'r ; Checks if the fourth char that was entered was 'r'.
+bne noCom ; The fourth char that was entered wasn't 'r' so it's an illegal command.
+inc pointer ; Pointer will now point to the fifth char in #command.
+cmpb @pointer, #'t ; Checks if the fifth char that was entered was 't'.
+bne noCom ; The fifth char that was entered wasn't 't' so it's an illegal command.
+inc pointer ; Pointer will now point to the sixth char in #command.
+cmpb #' , @pointer ;Checks if the char that was entered after 'start' was ' '.
+bne noCom ;If the char that was entered after 'start' wasn't ' ' the command is illegal.
+jmp startCom ; 'start ' was entered.
 
 
 tCom:
 ; If we got here we had 't'
-inc pointer
-cmpb @pointer, #'i
-bne noCom
-inc pointer
-cmpb @pointer, #'m
-bne noCom
-inc pointer
-cmpb @pointer, #'e
-bne noCom
-jmp timeCom
+inc pointer ; Pointer will now point to the second char in #command.
+cmpb @pointer, #'i ; Checks if the second char that was entered was 'i'.
+bne noCom ; The second char that was entered wasn't 'i' so it's an illegal command.
+inc pointer ; Pointer will now point to the third char in #command.
+cmpb @pointer, #'m ; Checks if the third char that was entered was 'm'.
+bne noCom ; The third char that was entered wasn't 'm' so it's an illegal command.
+inc pointer ; Pointer will now point to the fourth char in #command.
+cmpb @pointer, #'e ; Checks if the third char that was entered was 'e'.
+bne noCom ; The fourth char that was entered wasn't 'e' so it's an illegal command.
+jmp timeCom ;'time' was entered.
 
 mCom:
 ; If we got here we had 'm'
-inc pointer
-cmpb @pointer, #'o
-bne noCom
-inc pointer
-cmpb @pointer, #'v
-bne noCom
-inc pointer
-cmpb @pointer, #'e
-bne noCom
-inc pointer
-cmpb #' , @pointer
-bne noCom
-jmp moveCom
+inc pointer ; Pointer will now point to the second char in #command.
+cmpb @pointer, #'o ; Checks if the second char that was entered was 'o'.
+bne noCom ; The second char that was entered wasn't 'o' so it's an illegal command.
+inc pointer ; Pointer will now point to the third char in #command.
+cmpb @pointer, #'v ; Checks if the third char that was entered was 'v'.
+bne noCom ; The third char that was entered wasn't 'v' so it's an illegal command.
+inc pointer ; Pointer will now point to the fourth char in #command.
+cmpb @pointer, #'e ; Checks if the fourth char that was entered was 'e'.
+bne noCom ; The fourth char that was entered wasn't 'e' so it's an illegal command.
+inc pointer ; Pointer will now point to the fifth char in #command.
+cmpb #' , @pointer ;Checks if ' ' was entered after 'move'.
+bne noCom ; ' ' wasn't entered after move so it's an illegal command.
+jmp moveCom ; 'move ' was entered.
 
 ;-------------------------------------------------------------------------------
 ;                           Illegal command
 ;-------------------------------------------------------------------------------
 noCom:
-; Prints cannot execute..
 jsr pc, printNL ; Printing new line
 mov #cannot, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'Cannot execute "'.
 tst (sp)+
-mov #command, pointer
-mov #errorCom, errPtr
+mov #command, pointer ; Moving pointer to the start of the command string.
+mov #errorCom, errPtr ; Moving error command adress to error pointer.
 cpyErr:
-cmpb  #0 , @pointer
-beq donecpy
-movb @pointer, @errPtr
-inc errPtr
-inc pointer
-jmp cpyErr
+;Copying command to #errorCom.
+cmpb  #0 , @pointer ; Checks if reached end of command string.
+beq donecpy ; If reached end of command string branch to donecpy.
+movb @pointer, @errPtr ; Copy current char from #command to #errorCom.
+inc errPtr ; Move to the next char.
+inc pointer ; Move to the next char.
+jmp cpyErr ; Keep on copying.
 
 donecpy:
-movb #'", @errPtr
-inc errPtr
-movb #'\r, @errPtr
+;Command copying is done.
+movb #'", @errPtr ; Put '"' char at the end of the copied command.
+inc errPtr ; Move to the next char in #errorCom.
+movb #'\r, @errPtr ; Put '\r' char after '"' in order to use printStr.
 mov #errorCom, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Print '[command] "'.
 tst (sp)+
-mov #command, pointer
+mov #command, pointer ;Set pointer to the start of #command.
 jsr pc, printNL ; Printing new line
-jsr pc, printdol
+jsr pc, printdol ; Prints '$'.
 rts pc ; return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -428,37 +428,38 @@ rts pc ; return from decode
 ;                           Command is 'start'
 ;-------------------------------------------------------------------------------
 startCom:
+cmp gameOn, #0
+bne jnoCom ; If game is on 'start' is illegal command.
 inc pointer
 cmpb  #' , @pointer
 beq startCom ; skipping spaces
 ; Spaces skipped
 setWplyr: ; Set white player
-cmpb @pointer, #'h
+cmpb @pointer, #'h ;Player is white human.
 beq wHuman
-cmpb @pointer, #'c
+cmpb @pointer, #'c ; Player is white computer.
 beq wPC
-jmp noCom
+jmp noCom ;The entered char wasn't 'c' or 'h' so it's an illegal command.
 
 wHuman:
-mov #1, wPlayer
-; Checks if after 'h' there is a space. if not -> noCom
-inc pointer
-cmpb #' , @pointer
+mov #1, wPlayer ;1 will represent a human player.
+inc pointer ; Move to the next char.
+cmpb #' , @pointer ; Checks if after 'h' there is a space. if not -> noCom
 bne noCom
-dec pointer
-jmp setwTime
+dec pointer ; Move to the previous char (used to skip spaces).
+jmp setwTime ; Player is set, move to time set.
 wPC:
-mov #2, wPlayer
+mov #2, wPlayer ;2 will represent a computer player.
 ; Checks if after 'c' there is a space. if not -> noCom
 inc pointer
-cmpb #' , @pointer
+cmpb #' , @pointer ; Checks if after 'c' there is a space. if not -> noComb
 bne noCom
-dec pointer
-jmp setwTime
+dec pointer ; Move pointer to the previous char in #command (used to skip spaces).
+jmp setwTime ; Player is set, move to time set.
 
 setwTime:
-mov #0, wTime ; White Time
-inc pointer
+mov #0, wTime ; Reset white time.
+inc pointer ; Move to the next char in #command.
 cmpb #' , @pointer
 beq setwTime ; skipping spaces
 cmpb @pointer, #'0
@@ -470,58 +471,60 @@ jsr pc, RstBWStr ; Reseting values of wTimeStr and bTimeStr
 rdWTime: ; Read White player time
 mov r1, -(sp) ; Backing up r1
 mov wTime, r1
-mul #10., r1
-mov r1, wTime
-mov (sp)+, r1
-mov r0, -(sp) ; Backing up r0
+mul #10., r1 ; r1 = wTime * 10.
+mov r1, wTime ; wTime = wTime * 10.
+mov (sp)+, r1 ; Restoring r1's value.
+mov r0, -(sp) ; Backing up r0.
 movb @pointer, @wTimePtr ; copy ascii number to a string (will be printed later)
-inc wTimePtr
-movb @pointer, r0
+inc wTimePtr ; Move to the next char in #wTimeStr.
+movb @pointer, r0 ; r0 will hold the current char in #command (which is a number char).
+;Converts number char to its ascii value.
 bic #asciimask, r0
-add r0, wTime
-mov (sp)+, r0
-inc pointer
+add r0, wTime ; wTime = wTime + ascii value of the current number char.
+mov (sp)+, r0 ; Restoring r0's value.
+inc pointer ; Move to the the next char in #command.
 cmpb #' , @pointer
-beq setBplyr ; Set Black Player
+beq setBplyr ; If the char after number is ' ' move to set black player time.
 cmpb @pointer, #'0
 blt jnoCom ; jumps if not a number
 cmpb @pointer, #'9
 bgt jnoCom ; jumps if not a number
-jmp rdWTime ; Read White Time
+jmp rdWTime ; If the next char is also a number char repeat rdWTime.
 
 setBplyr:
-inc pointer
+inc pointer ; Move to the next char in #command.
 cmpb  #' , @pointer
 beq setBplyr ; skipping spaces
-cmpb @pointer, #'h
+cmpb @pointer, #'h ;Player is black human.
 beq bHuman
-cmpb @pointer, #'c
+cmpb @pointer, #'c ;Player is black computer.
 beq bPC
-jmp noCom
+jmp noCom ;The entered char wasn't 'c' or 'h' so it's an illegal command.
 
 bHuman:
-mov #1, bPlayer
+mov #1, bPlayer ;1 will represent a human player.
 ; Checks if after 'h' there is a space. if not -> noCom
-inc pointer
-cmpb #' , @pointer
+inc pointer ; Move to the the next char in #command.
+cmpb #' , @pointer ; Checks if after 'h' there is a space. if not -> noCom
 bne jnoCom
-dec pointer
-jmp setbTime ; Set Black Time
+dec pointer ; Move to the previous char in #command (used to skip spaces).
+jmp setbTime ; Player is set, move to time set.
 
 bPC:
-mov #2, bPlayer
+mov #2, bPlayer ;2 will represent a computer player.
 ; Checks if after 'c' there is a space. if not -> noCom
 inc pointer
-cmpb #' , @pointer
+cmpb #' , @pointer; Checks if after 'c' there is a space. if not -> noComb
 bne jnoCom
-dec pointer
-jmp setbTime ; Set Black Time
+dec pointer ; Move pointer to the previous char in #command (used to skip spaces).
+jmp setbTime ; Player is set, move to time set.
+
 
                   jnoCom: jmp noCom
 
 setbTime:
-mov #0, bTime
-inc pointer
+mov #0, bTime ; Reset black time.
+inc pointer ; Move to the next char in #command.
 cmpb #' , @pointer
 beq setbTime ; skipping spaces
 cmpb @pointer, #'0
@@ -532,40 +535,39 @@ bgt jnoCom ; jumps if not a number
 rdBTime: ; Read Black player time
 mov r1, -(sp) ; Backing up r1
 mov bTime, r1
-mul #10., r1
-mov r1, bTime
-mov (sp)+, r1
+mul #10., r1 ; r1 = bTime * 10.
+mov r1, bTime ; bTime = bTime * 10.
+mov (sp)+, r1 ; Restoring r1's value.
 mov r0, -(sp) ; Backing up r0
 movb @pointer, @bTimePtr ; copy ascii number to a string (will be printed later)
-inc bTimePtr
-movb @pointer, r0
+inc bTimePtr  ; Move to the next char in #bTimeStr.
+movb @pointer, r0 ; r0 will hold the current char in #command (which is a number char).
+;Converts number char to its ascii value.
 bic #asciimask, r0
-add r0, bTime
-mov (sp)+, r0
-inc pointer
+add r0, bTime ; bTime = bTime + ascii value of the current number char.
+mov (sp)+, r0 ; Restoring r0's value.
+inc pointer ; Move to the the next char in #command.
 cmpb @pointer, #'0
 blt startChk ; jumps if not a number
 cmpb @pointer, #'9
 bgt startChk ; jumps if not a number
-jmp rdBTime ; Read Black Time
+jmp rdBTime ; If the next char is also a number char repeat rdWBTime.
+
 
 startChk:
-cmpb @pointer, #0
-bne jnoCom
-cmp gameOn, #0
-bne jnoCom
+cmpb @pointer, #0 ;Check if reached the on of the command.
+bne jnoCom ; If not reached end of the command, command is illegal.
 jmp startOK
 
 startOK:
 mov #1, gameOn
 jsr pc, printNL ; Printing new line
-jsr pc, Start
-
+jsr pc, Start ; Start game routine.
 rts pc ; Return from decode
 
 Start:
 mov #newgame, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'Starting a new game'.
 tst (sp)+
 jsr pc, printNL ; Printing new line
 jsr pc, printWPI ; Printing "White player is "
@@ -582,15 +584,11 @@ br wplyrtime
 wplyrtime:
 ; Printing time for white player
 mov #with, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'with '
 tst (sp)+
-
 jsr pc, printWPT ; print White Player Time
-
 jsr pc, printSPM ; Printing "seconds per move\r"
 jsr pc, printNL ; Printing new line
-
-
 jsr pc, printBPI ; Printing "Black player is "
 cmpb bPlayer, #1
 beq bplyrHmn ; Black Player Human
@@ -605,21 +603,17 @@ br bplyrtime
 bplyrtime:
 ; Printing time for white player
 mov #with, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'with '
 tst (sp)+
-
 jsr pc, printBPT ; print Black Player Time
 jsr pc, printSPM ; Printing "seconds per move\r"
 jsr pc, printNL ; Printing new line
-
-mov #1, turn
-mov #0, tcounter
-mov #0, msctr
-mov #0, WinParam
+mov #1, turn ; White player will begin.
+mov #0, tcounter ; Resets seconds time counter.
+mov #0, msctr ; Resets mili seconds time counter.
+mov #0, WinParam ; Resets WinParam.
 jsr pc, initBoard ; Initializing the board
 jsr pc, printB ; Printing the board
-
-
 rts pc ; Return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -629,13 +623,13 @@ rts pc ; Return from decode
 ;                           Command is 'stop'
 ;-------------------------------------------------------------------------------
 stopCom:
-inc pointer
-cmpb @pointer, #0
-bne jnoCom1
+inc pointer ; Move to the next char in #command.
+cmpb @pointer, #0 ;Check if reached the on of the command.
+bne jnoCom1 ; If not reached end of the command, command is illegal.
 tst gameOn
-beq jnoCom1
+beq jnoCom1 ; If game on is 0, stop command is illegal.
 mov #0, gameOn ; Stopping the game
-jsr pc, printNL
+jsr pc, printNL ; Prints new line.
 rts pc ; Return from decode
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -643,71 +637,72 @@ rts pc ; Return from decode
 ;                           Command is 'time'
 ;-------------------------------------------------------------------------------
 timeCom:
-inc pointer
-cmpb @pointer, #0
-bne jnoCom1
+inc pointer ; Move to the next char in #command.
+cmpb @pointer, #0 ;Check if reached the on of the command.
+bne jnoCom1 ; If not reached end of the command, command is illegal.
 tst gameOn
-beq jnoCom1
-jsr pc, printNL
-mov #tlefstr, -(sp)
+beq jnoCom1 ; If game on is 0, time command is illegal.
+jsr pc, printNL ; Prints new line.
+mov #tlefstr, -(sp) ; Prints 'Time Left: '.
 jsr pc, printStr
 ; The place allocated for tleftstr will be used for the output of asciConv.
-mov tcounter, -(sp)
-jsr pc, asciConv
+mov tcounter, -(sp) ; Moves seconds left to the stack.
+jsr pc, asciConv ; Converts seconds left to number chars.
 tst (sp)+ ; popping time decimal value.
-jsr pc, printStr
+jsr pc, printStr ; Prints seconds left.
 tst (sp)+
 movb #'., @#tpb ;Prints dot.
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
-mov r0, -(sp)
-mov r1, -(sp)
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
 clr r0
-mov msctr, r1
-div rate, r0
-mov r1, -(sp)
-mov 2(sp), r1
-mov 4(sp), r0
-mov (sp)+, (sp)
+mov msctr, r1 ; Move clock interrupts left to r1.
+div rate, r0 ; Clock interrupts left/rate = mili seconds left.
+mov r1, -(sp) ; Moving mili seconds left to stack.
+mov 2(sp), r1 ; Restoring r1's value.
+mov 4(sp), r0 ; Restoring r0's value.
+mov (sp)+, (sp) ; Moving mili seconds left down in the stack.
+; 2(sp) will be used for output.
 jsr pc, asciConv
 tst (sp)+ ; popping time decimal value.
-jsr pc, printStr
+jsr pc, printStr ; Prints mili seconds left.
 movb #' , @#tpb ;Prints dot.
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
 mov #secStr, (sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'seconds '.
 tst (sp)+
-jsr pc, printNL
-jsr pc, printNL
-jsr pc, printdol
-rts pc
+jsr pc, printNL ; Prints new line.
+jsr pc, printNL ; Prints new line.
+jsr pc, printdol ; Prints dollar.
+rts pc ; Return from decode
 
 ;-------------------------------------------------------------------------------
 ;                           Command is 'move'
 ;-------------------------------------------------------------------------------
 moveCom:
 ; The command is 'move'
-cmp gameOn, #0
-beq jnoCom1
+cmp gameOn, #0 ; Check if game is on.
+beq jnoCom1 ; If game on is 0, cannot move.
 cmp #1, turn
-beq chkwht
+beq chkwht ; If turn is 1 it's white player's turn.
 ;player is black.
 cmp #2, bPlayer
-beq jnoCom1
-br .+12
+beq jnoCom1 ; If its black player's turn and black player is computer, cannot move.
+br .+12 ; Branch to continue.
 chkwht:
 cmp #2, wPlayer
-beq jnoCom1
+beq jnoCom1 ; If its white player's turn and white player is computer, cannot move.
 cmpb  #' , @pointer
 bne continue
 inc pointer ; Skipping spaces.
-br moveCom
+br chkwht
 continue:
 cmpb @pointer, #'0
-blt jnoCom1
+blt jnoCom1 ; jumps if not a number
 cmpb  @pointer, #'7
-bgt jnoCom1
+bgt jnoCom1 ; jumps if not a number
 mov r0, -(sp)  ; Backing up r0.
 mov r1, -(sp)  ; Backing up r1.
 mov r2, -(sp)  ; Backing up r2.
@@ -715,30 +710,33 @@ mov r3, -(sp)  ; Backing up r3.
 mov r4, -(sp)  ; Backing up r4.
 mov r5, -(sp)  ; Backing up r5.
 clr r1
-movb @pointer, r0
+movb @pointer, r0 ; r0 will hold the current char in #command (which is a number char).
+;Converts number char to its ascii value.
 bic #asciimask, r0
-mov r0, r2 ; r2 will be used for row index.
-mov r0, r1
+mov r0, r2 ; r2 will be used for row index (contains the left number of index input).
+mov r0, r1 ; r1 will contain the left number of the index input.
+;Multiplying r1 by 8.
 asl r1
 asl r1
 asl r1
 inc pointer ;Get next index character.
 cmpb @pointer, #'0
-blt badIdxj
+blt badIdxj ; jumps if not a number
 cmpb  @pointer, #'7
-bgt badIdxj
-movb @pointer, r0
+bgt badIdxj ; jumps if not a number
+movb @pointer, r0 ; r0 will hold the current char in #command (which is a number char).
+;Converts number char to its ascii value.
 bic #asciimask, r0
-mov r0, r3 ; r3 will be used for column index.
-add r0, r1
+mov r0, r3 ; r3 will be used for column index (contains the right number of the index input).
+add r0, r1 ; r1 will contain the entered index input.
 mul #2, r1 ;Multiplying by 2 (each word is 2 bytes).
-add #Board, r1
-mov r1, source ; source will hold source board adress.
-cmp (r1), turn ;Checks if a piece of the current player is found in the given index.
-bne badIdxj
-inc pointer
-cmpb @pointer, #'\s
-bne badIdxj
+add #Board, r1 ; r1 will contain the entered source index board adress.
+mov r1, source ; source will hold the source index board adress.
+cmp (r1), turn ;Checks if a piece of the current player is found in the given index board adress.
+bne badIdxj ; The given index board adress doesn't contain a piece of the color of the current player.
+inc pointer ;Get next index character.
+cmpb @pointer, #'\s ;Check if the char after the number is ' '.
+bne badIdxj ; The char is not ' ', the command is illegal.
 skip:
 cmpb  #' , @pointer
 bne cont2
@@ -746,55 +744,58 @@ inc pointer ; Skipping spaces.
 br skip
 cont2:
 cmpb @pointer, #'0
-blt badIdxj
+blt badIdxj ; jumps if not a number
 cmpb  @pointer, #'7
-bgt badIdxj
-clr r1
-movb @pointer, r0
+bgt badIdxj ; jumps if not a number
+clr r1 ; Clears r1.
+movb @pointer, r0 ; r0 will hold the current char in #command (which is a number char).
+;Converts number char to its ascii value.
 bic #asciimask, r0
-add r0, r1
+add r0, r1 ; r1 will contain the left number of the index input.
+;Multiplying r1 by 8.
 asl r1
 asl r1
 asl r1
 inc pointer ;Get next index character.
 cmpb @pointer, #'0
-blt badIdxj
+blt badIdxj ; jumps if not a number
 cmpb @pointer, #'7
-bgt badIdxj
-movb @pointer, r0
+bgt badIdxj ; jumps if not a number
+movb @pointer, r0 ; r0 will hold the current char in #command (which is a number char).
+;Converts number char to its ascii value.
 bic #asciimask, r0
-add r0, r1
+add r0, r1 ; r1 will contain the entered index input.
 mul #2, r1 ;Multiplying by 2 (each word is 2 bytes).
-add #Board, r1
+add #Board, r1 ; r1 will contain the entered destenation index board adress.
 mov r1, dest ;dest will now hold desteation board adress.
-inc pointer
-cmpb @pointer, #0
-bne badIdxj
-cmp dest, source
-beq badIdxj ; Checks if source == dest.
+inc pointer ;Get next index character.
+cmpb @pointer, #0 ;Check if the char after the number is ' '.
+bne badIdxj ; The char is not ' ', the command is illegal.
+cmp dest, source ; Checks if source == dest.
+beq badIdxj ; If source == dest , command is illegal.
 cmp #1, turn
-bne bIdxChk ; Black index Check
+bne bIdxChk ; If turn is not 1 , it's black player's turn.
 ;Checking if the desteation adress is legal for white player.
 cmp source, dest
 blt badIdxj ; If source<dest white is trying to move down instead of up.
-mov r2, r4 ;Using r4 as temporary row index.
+mov r2, r4 ; Using r4 as temporary row index.
 sub #1, r4 ; Reducing row index by 1.
 cmp r4, #0
 blt badIdxj ; If row index is less than 0, cannot move left or right.
-mov r3, r5 ;Using r5 as temporary column index.
+mov r3, r5 ; Using r5 as temporary column index.
 add #1, r5 ; Increasing column index by 1.
 cmp r5, #7
-bgt LeftWmv ; If column index is bigger than 7, the current piece cannot move right.
+bgt LeftWmv ; If column index is bigger than 7, the current piece cannot move right. Check moves to the left.
 ; If we got here the desteation index can be the upper right cell.
-mov source, r1
+mov source, r1 ; r1 = source board adress.
 cmp -14.(r1), #1 ; Checking if the upper right piece is white.
 beq LeftWmv ; If the upper right piece is white, cannot go there, check legal moves to the left.
 cmp -14.(r1), #2 ; Checking if the upper right piece is black.
 beq eatrwmv ; If the upper right piece is black, check if the white piece can eat it.
-; If we got here we need to check if the desteation adress equals to the left right cell adress.
-sub #14., r1
-cmp r1, dest
-beq destFj
+; If we got here the white piece can move to the upper right cell and we need to check if the desteation adress equals to the left right cell adress.
+sub #14., r1 ; r1 will contain the adress of the upper right cell.
+cmp r1, dest ; Checks if the upper right cell == dest.
+beq destFj ; If dest is the upper right cell , the move is legal, branch to dest found.
 jmp LeftWmv ; Keep on checking legal moves to the left (cannot eat so we don't need to check an eating option).
 
 badIdxj:
@@ -811,13 +812,13 @@ add #1, r5 ;Increasing column index by 1.
 cmp r5, #7
 bgt LeftWmv ; If column index is bigger than 7, cannot eat (out of bounds). Check legal moves to the left.
 ;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, we need to check if it is empty.
-mov source, r1
+mov source, r1 ; r1 = source board adress.
 cmp -28.(r1), #0 ; Checking if the cell is empty.
 bne LeftWmv ; If the cell is not empty, cannot eat. Check legal moves to the left.
 ; If we got here we need to check if dest == upper right cell (after eating).
-sub #28., r1
-cmp dest, r1
-beq destFj
+sub #28., r1 ; r1 will contain the adress of the upper right cell (after eating).
+cmp dest, r1 ; Checks if the upper right cell (after eating) == dest.
+beq destFj ; If dest is the upper right cell (after eating) , the move is legal, branch to dest found.
 
 LeftWmv:
 mov r2, r4 ; Putting index of the current row in r4.
@@ -826,15 +827,15 @@ mov r3, r5 ; Putting index of the current column in r5.
 sub #1, r5 ; Reducing column index by 1.
 cmp r5, #0
 blt badIdxj ; If column index is less than 0, cannot move right, dest is not a legal cell adress.
-mov source, r1
+mov source, r1 ; r1 = source board adress.
 cmp -18.(r1), #1 ; Checking if the upper left piece is white.
 beq badIdxj ; If the upper left piece is white, cannot move there, dest is not a legal cell adress.
 cmp -18.(r1), #2 ; Checking if the upper left piece is black.
 beq eatlwmv ; If the upper left piece is black, Check if the white piece can eat it.
-sub #18., r1
-cmp dest, r1
-beq destFj
-jmp badIdxj ; If we got here there are no more moves to check and desteation adress wans't found.
+sub #18., r1 ; r1 will contain the adress of the upper left cell.
+cmp dest, r1 ; Checks if the upper left cell == dest.
+beq destFj ; If dest is the upper left cell , the move is legal, branch to dest found.
+jmp badIdxj ; If we got here there are no more moves to check for the white player and desteation is illegal.
 
 eatlwmv:
 sub #1, r5 ; Reducing column index by 1.
@@ -844,13 +845,13 @@ sub #1, r3 ; Reducing row index by 1.
 cmp r3, #0
 blt badIdxj ; If r3 is less than 0, cannot eat (out of bounds). dest is not a legal cell adress.
 ;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, Check if it is empty.
-mov source,r1
+mov source,r1 ; r1 = source board adress.
 cmp -36.(r1), #0 ; Checking if the cell is empty.
-bne badIdxj ;If the cell is not empty, cannot eat. Skip to the next cell.
-sub #36., r1
-cmp dest, r1
-beq destFound
-jmp badIdxj ; No more moving options.
+bne badIdxj ; If the cell is not empty, cannot eat and dest wasn't found. Dest is illegal.
+sub #36., r1 ; r1 will contain the adress of the upper left cell (after eating).
+cmp dest, r1 ; Checks if the upper left cell (after eating) == dest.
+beq destFound; If dest is the upper left cell (after eating) , the move is legal, branch to dest found.
+jmp badIdxj ; No more moving options. Dest is not a legal move adress.
 
 bIdxChk:
 cmp source, dest
@@ -863,15 +864,15 @@ mov r3, r5 ; Setting r5 to the current column index (after changing it eariler).
 add #1, r5 ; Increasing column index by 1.
 cmp r5, #7
 bgt RightBmv ; If column index is bigger than 7, the current piece cannot move left, Check legal moves to the right.
-mov source, r1
-cmp 18.(r1), #2 ; Checking if the lower right piece is black.
-beq RightBmv ; If the lower right piece is black, cannot go there, Check legal moves to the right.
-; If we got here the desteation index can be the lower right cell.
-cmp 18.(r1), #1 ; Checking if the lower right piece is black.
-beq eatlbmv ; If the lower right piece is white, check if the black piece can eat it.
-add #18., r1
-cmp dest, r1
-beq destFound
+mov source, r1 ; r1 = source board adress.
+cmp 18.(r1), #2 ; Checking if the lower left piece is black.
+beq RightBmv ; If the lower left piece is black, cannot go there, Check legal moves to the right.
+; If we got here the desteation index can be the lower left cell.
+cmp 18.(r1), #1 ; Checking if the lower left piece is black.
+beq eatlbmv ; If the lower left piece is white, check if the black piece can eat it.
+add #18., r1 ; r1 will contain the adress of the lower left cell.
+cmp dest, r1 ; Checks if the lower left cell == dest.
+beq destFound ; If dest is the lower left cell , the move is legal, branch to dest found.
 br RightBmv ; Keep on checking legal moves to the right (cannot eat so we don't need to check an eating option).
 
 eatlbmv:
@@ -882,12 +883,12 @@ add #1, r5 ;Increasing column index by 1.
 cmp r5, #7
 bgt RightBmv ; If column index is bigger than 7, cannot eat (out of bounds). Check legal moves to the right.
 ;If we got here, the cell which the current black piece should be placed after eating is in the board bounds, we need to check if it is empty.
-mov source, r1
+mov source, r1 ; r1 = source board adress.
 cmp 36.(r1), #0 ; Checking if the cell is empty.
 bne RightBmv ; If the cell is not empty, cannot eat. Check legal moves to the right.
-add #36., r1
-cmp dest, r1
-beq destFound
+add #36., r1 ; r1 will contain the adress of the lower left cell (after eating).
+cmp dest, r1 ; Checks if the lower left cell (after eating) == dest.
+beq destFound ; If dest is the lower left cell (after eating), the move is legal, branch to dest found.
 
 RightBmv:
 mov r2, r4 ; Putting index of the current row in r3.
@@ -896,15 +897,15 @@ mov r3, r5 ; Putting index of the current column in r5.
 sub #1, r5 ; Decreasing column index by 1.
 cmp r5, #0
 blt badIdxju ; If column index is less than 0, cannot move right, desteation adress cannot be legal.
-mov source, r1
-cmp 14.(r1), #2 ; Checking if the lower left piece is black.
-beq badIdxju ; If the lower left piece is white, cannot move there, desteation adress cannot be legal.
-cmp 14.(r1), #1 ; Checking if the lower left piece is white.
-beq eatrbmv ; If the lower left piece is white, check if the black piece can eat it.
-add #14., r1
-cmp dest, r1
-beq destFound
-jmp badIdxj ;No more moving options.
+mov source, r1 ; r1 = source board adress.
+cmp 14.(r1), #2 ; Checking if the lower right piece is black.
+beq badIdxju ; If the lower right piece is white, cannot move there, desteation adress cannot be legal.
+cmp 14.(r1), #1 ; Checking if the lower right piece is white.
+beq eatrbmv ; If the lower right piece is white, check if the black piece can eat it.
+add #14., r1 ; r1 will contain the adress of the lower right cell.
+cmp dest, r1 ; Checks if the lower right cell == dest.
+beq destFound ; If dest is the lower right cell , the move is legal, branch to dest found.
+jmp badIdxj ;No more moving options, dest wasn't found , dest is illegal board adress.
 
 badIdxju:
 jmp badIdx
@@ -915,113 +916,116 @@ cmp r5, #0
 blt badIdxju ; If column index is less than 0, cannot eat, desteation adress cannot be legal.
 add #1, r4 ; Increasing row index by 1.
 cmp r4, #7
-bgt badIdxju ; If r3 is bigger than 7, cannot eat (out of bounds). Skip to the next cell.
+bgt badIdxju ; If r3 is bigger than 7, cannot eat (out of bounds). desteation adress cannot be legal.
 ;If we got here, the cell which the current white piece should be placed after eating is in the board bounds, Check if it is empty.
-mov source, r1
+mov source, r1 ; r1 = source board adress.
 cmp 28.(r1), #0 ; Checking if the cell is empty.
 bne badIdxju ;If the cell is not empty, cannot eat.
-add #28., r1
-cmp dest, r1
-beq destFound
-jmp badIdxj ; No more moving options.
+add #28., r1 ; r1 will contain the adress of the lower right cell (after eating).
+cmp dest, r1 ; Checks if the lower right cell (after eating) == dest.
+beq destFound ; If dest is the lower right cell (after eating), the move is legal, branch to dest found.
+jmp badIdxj ;No more moving options, dest wasn't found , dest is illegal board adress.
+
 
 destFound:
-mov (sp)+, r5
-mov (sp)+, r4
-mov (sp)+, r3
-mov (sp)+, r2
+; If we got here , source and desteation index were legal.
+mov (sp)+, r5 ;Restores r5's value.
+mov (sp)+, r4 ;Restores r4's value.
+mov (sp)+, r3 ;Restores r3's value.
+mov (sp)+, r2 ;Restores r2's value.
 mov (sp)+, r1 ;Restores r1's value.
 mov (sp)+, r0 ;Restores r0's value.
+; Setting stack for movPiece which will update the board.
 mov source, -(sp)
 mov dest, -(sp)
 jsr pc, movPiece
 add #4, sp ;Popping source and dest.
-
 mov #0, @#lcs ; Stopping the clock
 mov #-1., TIMOUT ; Player Moved successfully.
-
 jsr pc, printNL ; Printing new line
 cmp turn, #1
-beq whitMv
+beq whitMv ; If turn == 1 it's white player's turn.
 ; Black Player Turn
 jsr pc, printBLK ; Printing: 'Black '
 jsr pc, printHmn ; Printing: 'Human '
 jsr pc, printMT ; Printing: 'move took '
 tst -(sp)
 mov bTime, -(sp)
-sub tcounter, (sp) ; r0 will contain how much seconds left in decimal.
-jsr pc, asciConv
+sub tcounter, (sp) ; (sp) will contain how much seconds passed in decimal.
+jsr pc, asciConv ; Converting seconds passed to ascii. Output string pointer be at 2(sp).
 tst (sp)+ ; popping time decimal value.
-jsr pc, printStr
+jsr pc, printStr ; Priting seconds passed.
 tst (sp)+
 movb #'., @#tpb ;Prints dot.
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
-mov r0, -(sp)
-mov r1, -(sp)
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
 clr r0
-mov rate, r1
-sub msctr, r1
-div rate, r0
-mov r1, -(sp)
-mov 2(sp), r1
-mov 4(sp), r0
-mov (sp)+, (sp)
-jsr pc, asciConv
+mov rate, r1 ; Moving number of clock interrupt per second to r1.
+sub msctr, r1 ; r1 will contain how much clock interrupts passed till a seconds is passed.
+div rate, r0 ; Clock interrupts passed/rate = mili seconds passed.
+mov r1, -(sp) ; Moving mili seconds passed to stack.
+mov 2(sp), r1 ; Restoring r1's value.
+mov 4(sp), r0 ; Restoring r0's value.
+mov (sp)+, (sp) ; Moving mili seconds passed down in the stack.
+jsr pc, asciConv ; Converting mili seconds passed to ascii. Output string pointer be at 2(sp).
 tst (sp)+ ; popping time decimal value.
-jsr pc, printStr
+jsr pc, printStr ; Prints mili seconds passed.
 tst (sp)+
 jmp zibby
 
 whitMv:
-jsr pc, printWHT
+;White player's turn.
+jsr pc, printWHT ; Printing: 'White '
 jsr pc, printHmn ; Printing: 'Human '
 jsr pc, printMT ; Printing: 'move took '
 tst -(sp)
 mov wTime, -(sp)
-sub tcounter, (sp) ; r0 will contain how much seconds left in decimal.
-jsr pc, asciConv
+sub tcounter, (sp) ; (sp) will contain how much seconds passed in decimal.
+jsr pc, asciConv ; Converting seconds passed to ascii. Output string pointer be at 2(sp).
 tst (sp)+ ; popping time decimal value.
-jsr pc, printStr
+jsr pc, printStr ; Priting seconds passed.
 tst (sp)+
 movb #'., @#tpb ;Prints dot.
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
-mov r0, -(sp)
-mov r1, -(sp)
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
+mov r0, -(sp) ; Backing up r0.
+mov r1, -(sp) ; Backing up r1.
 clr r0
-mov rate, r1
-sub msctr, r1
-div rate, r0
-mov r1, -(sp)
-mov 2(sp), r1
-mov 4(sp), r0
-mov (sp)+, (sp)
-jsr pc, asciConv
+mov rate, r1 ; Moving number of clock interrupt per second to r1.
+sub msctr, r1 ; r1 will contain how much clock interrupts passed till a seconds is passed.
+div rate, r0 ; Clock interrupts passed/rate = mili seconds passed.
+mov r1, -(sp) ; Moving mili seconds passed to stack.
+mov 2(sp), r1 ; Restoring r1's value.
+mov 4(sp), r0 ; Restoring r0's value.
+mov (sp)+, (sp) ; Moving mili seconds passed down in the stack.
+jsr pc, asciConv ; Converting mili seconds passed to ascii. Output string pointer be at 2(sp).
 tst (sp)+ ; popping time decimal value.
-jsr pc, printStr
+jsr pc, printStr ; Prints mili seconds passed.
 tst (sp)+
 zibby:
 movb #'\s, @#tpb ;Prints dot.
 tstb @#tps ;Busy wait, wait till end of print.
-mov #secStr, -(sp)
+mov #secStr, -(sp) ; Prints 'seconds '.
 jsr pc, printStr
 tst (sp)+
-mov #dotStr, -(sp)
+mov #dotStr, -(sp) ; Prints '.'.
 jsr pc, printStr
 tst (sp)+
 jsr pc, printB ; Printing Board
-jsr pc, chgTurn
+jsr pc, chgTurn ; Changing turn.
 rts pc
 
 badIdx:
-mov (sp)+, r5
-mov (sp)+, r4
-mov (sp)+, r3
-mov (sp)+, r2
-mov (sp)+, r1
-mov (sp)+, r0
-jmp noCom
+;If we got here source / destenation index is illegal.
+mov (sp)+, r5 ; Restoring r5's value.
+mov (sp)+, r4 ; Restoring r4's value.
+mov (sp)+, r3 ; Restoring r3's value.
+mov (sp)+, r2 ; Restoring r2's value.
+mov (sp)+, r1 ; Restoring r1's value.
+mov (sp)+, r0 ; Restoring r0's value.
+jmp noCom ; Source/dest is not legal, jump to no command.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
@@ -1100,8 +1104,6 @@ rts pc
 ;                                PrintStr
 ;-------------------------------------------------------------------------------
 printStr:
-tstb @#tps ;Busy wait, wait till end of print.
-bpl printStr
 cmpb #'\0, @2(sp) ; Check if reached end of string.
 beq sof
 cmpb #'\r, @2(sp) ;Check if reached end of string and needs to print a new line.
@@ -1127,9 +1129,6 @@ rts pc
 ;                                printdol
 ;-------------------------------------------------------------------------------
 printdol:
-; Printing "$"
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #dollar, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1140,9 +1139,6 @@ rts pc
 ;                                printHmn
 ;-------------------------------------------------------------------------------
 printHmn:
-; Printing "Human "
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #hmn, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1153,9 +1149,6 @@ rts pc
 ;                                printPC
 ;-------------------------------------------------------------------------------
 printPC:
-; Printing "Computer "
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #computer, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1166,9 +1159,6 @@ rts pc
 ;                                printSPM
 ;-------------------------------------------------------------------------------
 printSPM:
-; Printing " seconds per move\r"
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #secpermov, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1210,8 +1200,6 @@ rts pc
 ;-------------------------------------------------------------------------------
 printBPI:
 ; Printing "Black player is "
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #Bplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1222,9 +1210,6 @@ rts pc
 ;                                printWPI
 ;-------------------------------------------------------------------------------
 printWPI:
-; Printing "White player is "
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #Wplyris, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1235,9 +1220,6 @@ rts pc
 ;                                printBPT
 ;-------------------------------------------------------------------------------
 printBPT:
-; Printing how much time the black player has to move
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #bTimeStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1248,9 +1230,6 @@ rts pc
 ;                                printWHT
 ;-------------------------------------------------------------------------------
 printWHT:
-; Printing: "White "
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #Wht, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1261,9 +1240,6 @@ rts pc
 ;                                printBLK
 ;-------------------------------------------------------------------------------
 printBLK:
-; Printing: "Black "
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #Blk, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1274,9 +1250,6 @@ rts pc
 ;                                printWPT
 ;-------------------------------------------------------------------------------
 printWPT:
-; Printing how much time the black player has to move
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #wTimeStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1287,9 +1260,6 @@ rts pc
 ;                                printNL
 ;-------------------------------------------------------------------------------
 printNL:
-; Printing new line
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #nlfeed, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1300,9 +1270,6 @@ rts pc
 ;                                printMT
 ;-------------------------------------------------------------------------------
 printMT:
-; Printing: 'move took '
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #movStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1316,9 +1283,6 @@ rts pc
 ;                                printBL
 ;-------------------------------------------------------------------------------
 printBL:
-; Printing 'Board layout:\r'
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #boardlay, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1343,9 +1307,6 @@ rts pc
 ;                                printWCP
 ;-------------------------------------------------------------------------------
 printWCP:
-; Printing: 'Current Player: White'
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #CPStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1373,8 +1334,6 @@ rts pc
 ;                                printWP
 ;-------------------------------------------------------------------------------
 printWP:
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov r0, -(sp)
 mov r1, -(sp)
 clr r0
@@ -1383,7 +1342,7 @@ tst WinParam
 bpl positWP ; Positive WP
 mul #-1., r1
 movb #'-, @#tpb
-tstb @#tps
+tstb @#tps ;Busy wait, wait till end of print.
 bpl .-4
 positWP:
 div #10., r0
@@ -1392,11 +1351,11 @@ tst r0
 beq endWP
 add #60, r0
 movb r0, @#tpb
-tstb @#tps
+tstb @#tps ;Busy wait, wait till end of print.
 bpl .-4
 endWP:
 movb r1, @#tpb
-tstb @#tps
+tstb @#tps ;Busy wait, wait till end of print.
 bpl .-4
 mov (sp)+, r1
 mov (sp)+, r0
@@ -1410,9 +1369,6 @@ rts pc
 ;                                printBCP
 ;-------------------------------------------------------------------------------
 printBCP:
-; Printing: 'Current Player: black'
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 mov #CPStr, -(sp)
 jsr pc, printStr
 tst (sp)+
@@ -1439,8 +1395,6 @@ rts pc
 ;                                printWin
 ;-------------------------------------------------------------------------------
 printWin:
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
 tst WinParam
 beq isTie
 tst WinParam
@@ -1464,6 +1418,9 @@ mov #playerWin, -(sp)
 jsr pc, printStr
 tst (sp)+
 isTie:
+mov #itsATie, -(sp)
+jsr pc, printStr
+tst (sp)+
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1477,6 +1434,7 @@ mov #25., r0
 mov #bTimeStr, bTimePtr
 mov #wTimeStr, wTimePtr
 loopRst:
+;Puts '0' in all words in #bTimeStr, #wTimeStr.
 mov #0, @bTimePtr
 add #2, bTimePtr
 mov #0, @wTimePtr
