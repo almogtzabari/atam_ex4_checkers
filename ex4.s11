@@ -83,6 +83,14 @@ whitTurj: jmp whitTurn
 endGBj: jmp endGameB
 
 bCpu:
+mov r5, -(sp) ; Backing up r5
+; Check if computer has legal moves:
+mov #2, -(sp) ; Checking moves for black player
+mov #0, -(sp) ; Place for output.
+jsr pc, hasMove
+mov (sp)+, (sp) ; Copying the output to (sp)
+tst (sp)+
+beq .+76 ; Doesn't have legal moves.
 ;Setting stack for recursive call.
 mov #source, -(sp) ;Source will contain the address of the best move source position.
 mov #dest, -(sp) ;dest will contain the address of the best move destenation position.
@@ -106,6 +114,9 @@ jsr pc, printPC ; Prints computer.
 jsr pc, printMT ; Printing: 'move took '
 tst -(sp)
 mov bTime, -(sp)
+tst r5 ; Check if computer has legal moves:
+bne .+6 ; branch if has legal moves.
+mov #0, (sp)
 jsr pc, asciConv ; Converts time to ascii values for time print.
 tst (sp)+ ; popping time decimal value.
 jsr pc, printStr ; Prints the number of seconds took for black computer move.
@@ -126,6 +137,7 @@ mov #dotStr, -(sp)
 jsr pc, printStr ; Prints '.'.
 tst (sp)+
 jsr pc, printB ; Print board.
+mov (sp)+, r5
 jmp cont1
 
 endGWj: jmp endGameW
@@ -171,6 +183,14 @@ mov #0, TIMOUT ; A move was made, time out is -1, set it back to 0.
 jmp cont1
 
 wCpu:
+mov r5, -(sp) ; Backing up r5
+; Check if computer has legal moves:
+mov #1, -(sp) ; Checking moves for white player
+mov #0, -(sp) ; Place for output.
+jsr pc, hasMove
+mov (sp)+, (sp) ; Copying the output to (sp)
+tst (sp)+
+beq .+76 ; Doesn't have legal moves.
 ;Setting stack for recursive call.
 mov #source, -(sp) ;Source will contain the address of the best move source position.
 mov #dest, -(sp) ;dest will contain the address of the best move destenation position.
@@ -194,6 +214,9 @@ jsr pc, printPC ; Prints computer.
 jsr pc, printMT ; Printing: 'move took '
 tst -(sp)
 mov wTime, -(sp)
+tst r5 ; Check if computer has legal moves:
+bne .+6 ; branch if has legal moves.
+mov #0, (sp)
 jsr pc, asciConv  ;Converts time to ascii values for time print.
 tst (sp)+ ; popping time decimal value.
 jsr pc, printStr ; Prints the number of seconds took for black computer move.
@@ -214,6 +237,7 @@ mov #dotStr, -(sp)
 jsr pc, printStr ; Prints '.'.
 tst (sp)+
 jsr pc, printB ; Print board.
+mov (sp)+, r5
 jmp cont1
 
 endGameW:
