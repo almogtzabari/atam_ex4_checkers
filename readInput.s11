@@ -1648,11 +1648,11 @@ mov #1, -(sp) ;  Allocating place for minOrMax of the first player.
 mov turn, -(sp) ; Pushing the player we check to the stack.
 mov Steps, -(sp) ; Pushing number of steps to stack.
 ; Calling the recursive function.
-jsr pc, getWPRec ;
+jsr pc, getWPRec
 tst gameOn
-beq CpuTup
+beq CpuTup ; If game on is 0 (game stopped) don't update WinParam, SrcPos and DstPos.
 tst TIMOUT
-bne CpuTup
+bne CpuTup ; If time out is 1 (Turn time ended) don't update WinParam, SrcPos and DstPos.
 ; Computer player still has time.
 ; Recursive function finished
 ; Popping unnecessary data from stack and writing output to given labels:
@@ -1661,9 +1661,10 @@ mov (sp)+, @6.(sp) ; Writing the best wp to WP label.
 ; SrcPos and DstPos returned as address of the board.
 mov (sp)+, @6.(sp) ; Writing adress to DstPos
 mov (sp)+, @6.(sp) ; Writing adress to SrcPos
-add #2, Steps
+add #2, Steps ; There is till time for the move, increase steps by 2 and start over.
 jmp getMaxWP
 CpuTup:
+;Time is up for computer's turn, pop stack and return.
 add #12., sp
 rts pc ; Returning to main.
 
@@ -1680,10 +1681,10 @@ rts pc ; Returning to main.
 ; This is the reccursive function.
 getWPRec:
 ; ----- STOP TERMS -----
-tst gameOn
+tst gameOn ; If game on is 0, game stopped quit recursion.
 bne .+4
 rts pc
-tst TIMOUT
+tst TIMOUT ; If time out is 1, time of the turn is over, quit recursion.
 beq .+4
 rts pc
 ; Preparing to call for checkWin with the last player to make a move:
