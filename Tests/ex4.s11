@@ -938,6 +938,7 @@ jsr pc, printHmn ; Printing: 'Human '
 jsr pc, printMT ; Printing: 'move took '
 tst -(sp)
 mov bTime, -(sp)
+add #1, tcounter
 sub tcounter, (sp) ; (sp) will contain how much seconds passed in decimal.
 jsr pc, asciConv ; Converting seconds passed to ascii. Output string pointer be at 2(sp).
 tst (sp)+ ; popping time decimal value.
@@ -969,6 +970,7 @@ jsr pc, printHmn ; Printing: 'Human '
 jsr pc, printMT ; Printing: 'move took '
 tst -(sp)
 mov wTime, -(sp)
+add #1, tcounter
 sub tcounter, (sp) ; (sp) will contain how much seconds passed in decimal.
 jsr pc, asciConv ; Converting seconds passed to ascii. Output string pointer be at 2(sp).
 tst (sp)+ ; popping time decimal value.
@@ -1025,10 +1027,8 @@ tst msctr ; If msctr == 0 a second passed.
 beq .+4 ; If a second passed check seconds left.
 rti
 tst tcounter
-beq .+24
+beq .+16
 dec tcounter ; A second passed, decrease seconds counter by 1.
-tst tcounter ; Check if tcounter == 0 (seconds left == 0).
-beq .+12 ;If no seconds left, set timeout to 1.
 mov rate, msctr ; Seconds left > 0 , set msctr to the number of clock interrupts in a second.
 rti
 mov #1, TIMOUT ; No seconds left, set timeout to 1.
