@@ -1418,31 +1418,34 @@ rts pc
 ; This method checks #WinParam and prints the correct winning message.
 printWin:
 tst WinParam
-beq isTie ; If WinParam is 0
+beq isTie ; If WinParam is 0 branch to isTie.
 tst WinParam
-bgt curWin
-;Current player didn't win
+bgt curWin ; If win param > 0 , the current player won.
+;Current player didn't win.
 cmp turn, #1
-beq Blackwin
-br Whitewin
+beq Blackwin ; If turn is 1 (white player's turn), black player won.
+br Whitewin ; If turn is 0 (black player's turn), white player won.
 curWin:
+; Current player won.
 cmp turn, #1
-beq Whitewin
+beq Whitewin ; If turn is 1 white player won.
 Blackwin:
-jsr pc, printBLK
+;Black player won.
+jsr pc, printBLK ; Prints 'Black '.
 mov #playerWin, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'player wins!' ;
 tst (sp)+
 rts pc
 Whitewin:
-jsr pc, printWHT
+;White player won.
+jsr pc, printWHT ; Prints 'White '.
 mov #playerWin, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'player wins!' ;
 tst (sp)+
 rts pc
 isTie:
 mov #itsATie, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'It's a tie! Game over.' ;
 tst (sp)+
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1450,12 +1453,14 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                RstBWStr
 ;-------------------------------------------------------------------------------
+; This method resets the values of bTimeStr and wTimeStr, by putting 0 in each
+; word in the strings.
 RstBWStr:
-; Resets values of bTimeStr and wTimeStr
+
 mov r0, -(sp) ; Backing up r0
-mov #25., r0
-mov #bTimeStr, bTimePtr
-mov #wTimeStr, wTimePtr
+mov #25., r0 ; r0 contains the number of words to be reseted in each string.
+mov #bTimeStr, bTimePtr ;bTimePtr will be used to point #bTimeStr.
+mov #wTimeStr, wTimePtr ;wTimePtr will be used to point #wTimeStr.
 loopRst:
 ;Puts '0' in all words in #bTimeStr, #wTimeStr.
 mov #0, @bTimePtr
@@ -1463,10 +1468,10 @@ add #2, bTimePtr
 mov #0, @wTimePtr
 add #2, wTimePtr
 sub #1, r0
-cmp r0, #0
+cmp r0, #0 ;Check if reached end of the strings.
 bne loopRst
-mov #bTimeStr, bTimePtr
-mov #wTimeStr, wTimePtr
+mov #bTimeStr, bTimePtr ;Sets bTimePtr to point to the start of #bTimeStr.
+mov #wTimeStr, wTimePtr ;Sets wTimePtr to point to the start of #wTimeStr.
 mov (sp)+, r0 ; Restoring r0
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1483,16 +1488,16 @@ jsr pc, printBL ; Printing 'Board layout:\r'
 mov r0, -(sp) ; Backing up r0.
 mov r1, -(sp) ; Backing up r1.
 mov r2, -(sp) ; Backing up r2.
-mov #8., r2 ; R2 will be initialized with 8 (number of words to print per row).
+mov #8., r2 ; r2 will be initialized with 8 (number of words to print per row).
 mov #Board, r1
-add #128., r1 ; r1 will contain the adress of the end of the playing board.
+add #128., r1 ; r1 will contain the adress of #Board+2.
 mov #Board, r0
 Ploop:
-cmp r0, r1
-beq endP
+cmp r0, r1 ; Check if reached end of #Board+2.
+beq endP ; If reached #Board+2, board printed, branch to end print.
 tst r2
-bne conP
-mov #8., r2
+bne conP ; If r2>0 we are still at the same row.
+mov #8., r2 ; If r2 = 0, set it back to 8 (number of words to print per row).
 jsr pc, printNL ; Printing new line
 conP:
 cmp (r0), #0 ;Check if we need to print _.
@@ -1501,84 +1506,86 @@ cmp (r0), #1 ;Check if we need to print W.
 beq printWH
 tst (r0) ; Move to the next word.
 movb #'B, @#tpb
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
-add #2, r0
-dec r2
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
+add #2, r0 ; Move to the next word in #Board.
+dec r2 ; Reduce number of words to print by 1 .
 br Ploop
 printWH:
 movb #'W, @#tpb
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
-add #2, r0
-dec r2
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
+add #2, r0 ; Move to the next word in #Board.
+dec r2 ; Reduce number of words to print by 1 .
 br Ploop
 print_:
 movb #'_, @#tpb
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
-add #2, r0
-dec r2
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
+add #2, r0 ; Move to the next word in #Board.
+dec r2 ; Reduce number of words to print by 1
 br Ploop
 endP:
+;Board printed.
 jsr pc, printNL ; Printing new line
 jsr pc, printNL ; Printing new line
-mov (sp)+, r2
-mov (sp)+, r1
-mov (sp)+, r0
+mov (sp)+, r2 ; Restore r2's value.
+mov (sp)+, r1 ; Restore r1's value.
+mov (sp)+, r0 ; Restore r0's value.
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
 ;                                initBoard
 ;-------------------------------------------------------------------------------
-
+;This method will initialize the playing board.
 initBoard:
 mov r0, -(sp) ; Backing up r0.
 mov r1, -(sp) ; Backing up r1.
 mov r2, -(sp) ; Backing up r2.
 mov #Board, r1
-add #128., r1
-mov #Board, r0
-mov #NewBoard, r2
+add #128., r1 ; r1 will contain the adress of #Board+2.
+mov #Board, r0 ; r0 will hold #Board adress.
+mov #NewBoard, r2 ; r2 will hold #NewBoard adress (new board contains a board of a new game).
 Cpyloop:
-cmp r0, r1
-beq endCpy
-mov (r2)+, (r0)+
+cmp r0, r1 ; Check if reached end of #Board+2.
+beq endCpy ; If reached #Board+2, board printed, branch to end print.
+mov (r2)+, (r0)+ ;Copy a word from new board to the playing board and move to the next word.
 br Cpyloop
 endCpy:
-mov (sp)+, r2
-mov (sp)+, r1
-mov (sp)+, r0
+;Board copying ended.
+mov (sp)+, r2 ; Restore r2's value.
+mov (sp)+, r1 ; Restore r1's value.
+mov (sp)+, r0 ; Restore r0's value.
 rts pc
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;-------------------------------------------------------------------------------
 ;                                chkwins
 ;-------------------------------------------------------------------------------
-; Checks if someone won
+; This method checks if someone won and prints the correct winning message.
 chkwins:
 mov r0, -(sp) ; Backing up r0
 mov #Board, -(sp)
-mov turn, -(sp)
-tst -(sp) ; Place for output
+mov turn, -(sp) ; Moves the current player's turn to the stack.
+tst -(sp) ; Place for output.
 jsr pc, checkWin
-mov (sp)+, r0 ; r0 contains the output for checkwin
-add #4, sp
+mov (sp)+, r0 ; r0 contains the output of checkwin.
+add #4, sp ; Pops turn and #Board.
 cmp #1, r0
-beq CurPW ; Current Player win
+beq CurPW ; if r0 == 0 , current Player won.
 cmp #2, r0
-beq tiegover ; Tie, Game Over
+beq tiegover ; Tie, Game Over.
 ; Current player didn't win. Lets check win for the other player.
 mov #3, r0
-sub turn, r0
+sub turn, r0 ; r0 = 3 - turn = other player's turn.
 mov #Board, -(sp)
-mov r0, -(sp)
-tst -(sp) ; Place for output
+mov r0, -(sp) ; Backing up r0
+tst -(sp) ; Place for output.
 jsr pc, checkWin
-mov (sp)+, r0 ; r0 contains the output for checkwin
-add #4, sp
-cmp #-1., r0
+mov (sp)+, r0 ; r0 contains the output of checkwin.
+add #4, sp ; Pops turn and #Board.
+cmp #-1., r0 ; If r0 == -1 , other player didn't win, no winners.
 beq NoWinner
 cmp #2, r0
 beq tiegover ; Tie, Game Over
@@ -1588,20 +1595,21 @@ beq .+14 ; Black player wins
 br WPW
 
 CurPW:
+;Current player won.
 cmp turn, #1
 beq WPW ; White Player Win
 ; Black Player Win
 mov #0, gameOn
 jsr pc, printBLK
 mov #playerWin, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'player wins!'.
 tst (sp)+
 br NoWinner
 WPW:
 mov #0, gameOn ; Stopping the game
 jsr pc, printWHT
 mov #playerWin, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'player wins!'.
 tst (sp)+
 NoWinner:
 jsr pc, printNL
@@ -1612,7 +1620,7 @@ tiegover:
 mov #0, gameOn ; Stopping the game
 mov #0, @#lcs ; Stopping clock
 mov #itsATie, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'It's a tie! Game over.'.
 tst (sp)+
 br NoWinner
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
