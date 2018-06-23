@@ -482,7 +482,7 @@ inc pointer ; Move to the next char in #command.
 cmpb #' , @pointer
 beq setwTime ; skipping spaces
 cmpb @pointer, #'0
-blt noCom ; jumps if not a number
+ble noCom ; jumps if not a number
 cmpb @pointer, #'9
 bgt noCom ; jumps if not a number
 jsr pc, RstBWStr ; Reseting values of wTimeStr and bTimeStr
@@ -545,7 +545,7 @@ inc pointer ; Move to the next char in #command.
 cmpb #' , @pointer
 beq setbTime ; skipping spaces
 cmpb @pointer, #'0
-blt jnoCom ; jumps if not a number
+ble jnoCom ; jumps if not a number
 cmpb  @pointer, #'9
 bgt jnoCom ; jumps if not a number
 ; If we got here it is a number
@@ -1064,7 +1064,7 @@ jmp noCom ; Source/dest is not legal, jump to no command.
 ;                           Clock interrupt
 ;-------------------------------------------------------------------------------
 clock:
-dec msctr ;msctr will contain the number of clock interrupts in a second.
+dec msctr ; msctr will contain the number of clock interrupts in a second.
 tst msctr ; If msctr == 0 a second passed.
 beq .+4 ; If a second passed check seconds left.
 rti
