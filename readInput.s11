@@ -1024,6 +1024,8 @@ dec msctr ;msctr will contain the number of clock interrupts in a second.
 tst msctr ; If msctr == 0 a second passed.
 beq .+4 ; If a second passed check seconds left.
 rti
+tst tcounter
+beq .+24
 dec tcounter ; A second passed, decrease seconds counter by 1.
 tst tcounter ; Check if tcounter == 0 (seconds left == 0).
 beq .+12 ;If no seconds left, set timeout to 1.
@@ -1317,25 +1319,26 @@ rts pc
 ;                                printWCP
 ;-------------------------------------------------------------------------------
 ; This method will print: 'Current Player: White Computer', or 'Current Player:
-; White Human' by checking if the player is a human or a computer.
+; White Human' by checking if the player is a human or a computer and printing
+; the correct string.
 printWCP:
 mov #CPStr, -(sp)
 jsr pc, printStr ; Prints 'Current Player : '
 tst (sp)+
-mov #Wht, -(sp) ; Prints 'White '.
-jsr pc, printStr
+mov #Wht, -(sp)
+jsr pc, printStr ; Prints 'White '.
 tst (sp)+
 cmp #1, wPlayer ; Checks if the player is a human or a computer.
 beq whitpl
 ; White Player is computer
 mov #computer, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'Computer '.
 tst (sp)+
 jmp endWCP
 whitpl:
 ; White player is Human
 mov #hmn, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'Human '.
 tst (sp)+
 endWCP:
 jsr pc, printNL ; Printing new line
@@ -1345,33 +1348,36 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printWP
 ;-------------------------------------------------------------------------------
+; This method will convert WP to a string and print it.
 printWP:
-mov r0, -(sp)
-mov r1, -(sp)
+mov r0, -(sp) ;Backing up r0.
+mov r1, -(sp) ;Backing up r1.
 clr r0
 mov WinParam, r1
 tst WinParam
-bpl positWP ; Positive WP
-mul #-1., r1
-movb #'-, @#tpb
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
+bpl positWP
+;Negative WP, print '-' and multiply by -1.
+mul #-1., r1 ; Converting WP to a positive number.
+movb #'-, @#tpb ; Printing '-' becuase the WP was negative.
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
 positWP:
-div #10., r0
-add #60, r1
-tst r0
-beq endWP
-add #60, r0
-movb r0, @#tpb
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
+; Positive WP
+div #10., r0 ; Dividing WP by 10 to get decimal digit.
+add #60, r1 ; Converts the digit to ascii.
+tst r0 ; Checks if WP had 1 digit.
+beq endWP ; WP was less than 10 (decimal) and had 1 digit.
+add #60, r0 ; WP had 2 digits, converts the left digit to ascii.
+movb r0, @#tpb ; Printing first digit.
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
 endWP:
-movb r1, @#tpb
-tstb @#tps ;Busy wait, wait till end of print.
-bpl .-4
-mov (sp)+, r1
-mov (sp)+, r0
-jsr pc, printNL
+movb r1, @#tpb ; Printing second digit.
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
+mov (sp)+, r1 ; Restores r1's value.
+mov (sp)+, r0 ; Restores r0's value.
+jsr pc, printNL ; Prints a new line.
 rts pc
 
 
@@ -1380,24 +1386,27 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printBCP
 ;-------------------------------------------------------------------------------
+; This method will print: 'Current Player: Black Computer', or 'Current Player:
+; Black Human' by checking if the player is a human or a computer and printing
+; the correct string.
 printBCP:
 mov #CPStr, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'Current Player : '
 tst (sp)+
 mov #Blk, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'Black '.
 tst (sp)+
-cmp #1, bPlayer
+cmp #1, bPlayer ; Checks if the player is a human or a computer.
 beq blkpl
 ; Black Player is computer
 mov #computer, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'Computer '.
 tst (sp)+
 jmp endBCP
 blkpl:
-; White player is Human
+; Black player is Human
 mov #hmn, -(sp)
-jsr pc, printStr
+jsr pc, printStr ; Prints 'Human '.
 tst (sp)+
 endBCP:
 jsr pc, printNL ; Printing new line
@@ -1406,9 +1415,10 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printWin
 ;-------------------------------------------------------------------------------
+; This method checks #WinParam and prints the correct winning message.
 printWin:
 tst WinParam
-beq isTie
+beq isTie ; If WinParam is 0
 tst WinParam
 bgt curWin
 ;Current player didn't win
