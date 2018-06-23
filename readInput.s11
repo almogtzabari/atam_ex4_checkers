@@ -1,9 +1,9 @@
-tks = 177560
-tkb = 177562
-tps = 177564
-tpb = 177566
-lcs = 177546
-asciimask = 177760 ; Will be used to convert ascii to number
+tks = 177560 ; Terminal keyboard status
+tkb = 177562 ; Terminal keyboard buffer
+tps = 177564 ; Terminal printer status
+tpb = 177566 ; Terminal printer buffer
+lcs = 177546 ; Clock
+asciimask = 177760 ; Will be used to convert ascii to number.
 
 .=torg + 60  ; Setting keyboard interrupt function and hardware preference to 4.
 .word rInput
@@ -593,7 +593,7 @@ jsr pc, printHmn ; Printing "Human "
 br bplyrtime
 
 bplyrtime:
-; Printing time for white player
+; Printing time for black player
 mov #with, -(sp)
 jsr pc, printStr ; Prints 'with '
 tst (sp)+
@@ -992,8 +992,9 @@ tst (sp)+ ; popping time decimal value.
 jsr pc, printStr ; Prints mili seconds passed.
 tst (sp)+
 zibby:
-movb #'\s, @#tpb ;Prints dot.
-tstb @#tps ;Busy wait, wait till end of print.
+movb #' , @#tpb ;Prints ' '.
+tstb @#tps
+bpl .-4 ;Busy wait, wait till end of print.
 mov #secStr, -(sp) ; Prints 'seconds '.
 jsr pc, printStr
 tst (sp)+
@@ -1103,10 +1104,10 @@ cmpb #'\r, @2(sp) ;Check if reached end of string and needs to print a new line.
 beq newline
 movb @2(sp), @#tpb ;Print char.
 inc 2(sp) ; Move to the next char.
-br printStr
-newline:
 tstb @#tps
 bpl .-4  ;Busy wait, wait till end of print.
+br printStr
+newline:
 movb #'\r, @#tpb ;Prints carrige return.
 tstb @#tps
 bpl .-4  ;Busy wait, wait till end of print.
@@ -1277,10 +1278,10 @@ rts pc
 ;-------------------------------------------------------------------------------
 ; This method will print 'move took '.
 printMT:
-mov #movStr, -(sp)
+mov #movStr, -(sp) ; Prints 'move '.
 jsr pc, printStr
 tst (sp)+
-mov #tookStr, -(sp)
+mov #tookStr, -(sp) ; Prints 'took '.
 jsr pc, printStr
 tst (sp)+
 rts pc
@@ -1315,14 +1316,16 @@ rts pc
 ;-------------------------------------------------------------------------------
 ;                                printWCP
 ;-------------------------------------------------------------------------------
+; This method will print: 'Current Player: White Computer', or 'Current Player:
+; White Human' by checking if the player is a human or a computer.
 printWCP:
 mov #CPStr, -(sp)
+jsr pc, printStr ; Prints 'Current Player : '
+tst (sp)+
+mov #Wht, -(sp) ; Prints 'White '.
 jsr pc, printStr
 tst (sp)+
-mov #Wht, -(sp)
-jsr pc, printStr
-tst (sp)+
-cmp #1, wPlayer
+cmp #1, wPlayer ; Checks if the player is a human or a computer.
 beq whitpl
 ; White Player is computer
 mov #computer, -(sp)
@@ -1426,6 +1429,7 @@ jsr pc, printWHT
 mov #playerWin, -(sp)
 jsr pc, printStr
 tst (sp)+
+rts pc
 isTie:
 mov #itsATie, -(sp)
 jsr pc, printStr
