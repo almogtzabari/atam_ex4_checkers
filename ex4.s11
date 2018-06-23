@@ -602,7 +602,9 @@ wplyrtime:
 mov #with, -(sp)
 jsr pc, printStr ; Prints 'with '
 tst (sp)+
-jsr pc, printWPT ; print White Player Time
+mov #wTimeStr, -(sp)
+jsr pc, printStr ; Print white player time
+tst (sp)+
 jsr pc, printSPM ; Printing "seconds per move\r"
 jsr pc, printNL ; Printing new line
 jsr pc, printBPI ; Printing "Black player is "
@@ -734,9 +736,9 @@ asl r1
 asl r1
 inc pointer ;Get next index character.
 cmpb @pointer, #'0
-blt badIdxj ; jumps if not a number
+blt badIx ; jumps if not a number
 cmpb  @pointer, #'7
-bgt badIdxj ; jumps if not a number
+bgt badIx ; jumps if not a number
 movb @pointer, r0 ; r0 will hold the current char in #command (which is a number char).
 ;Converts number char to its ascii value.
 bic #asciimask, r0
@@ -745,6 +747,8 @@ add r0, r1 ; r1 will contain the entered index input.
 mul #2, r1 ;Multiplying by 2 (each word is 2 bytes).
 add #Board, r1 ; r1 will contain the entered source index board adress.
 mov r1, source ; source will hold the source index board adress.
+cmp r1, #Board
+beq .+10
 cmp (r1), turn ;Checks if a piece of the current player is found in the given index board adress.
 bne badIdxj ; The given index board adress doesn't contain a piece of the color of the current player.
 inc pointer ;Get next index character.
@@ -755,6 +759,8 @@ cmpb  #' , @pointer
 bne cont2
 inc pointer ; Skipping spaces.
 br skip
+badIx: jmp badIdx
+bIxChk: jmp bIdxChk
 cont2:
 cmpb @pointer, #'0
 blt badIdxj ; jumps if not a number
@@ -785,9 +791,9 @@ inc pointer ;Get next index character.
 cmpb @pointer, #0 ;Check if the char after the number is ' '.
 bne badIdxj ; The char is not ' ', the command is illegal.
 cmp dest, source ; Checks if source == dest.
-beq badIdxj ; If source == dest , command is illegal.
+beq .+114 ; If source == dest , command is illegal.
 cmp #1, turn
-bne bIdxChk ; If turn is not 1 , it's black player's turn.
+bne bIxChk ; If turn is not 1 , it's black player's turn.
 ;Checking if the desteation adress is legal for white player.
 cmp source, dest
 blt badIdxj ; If source<dest white is trying to move down instead of up.
@@ -810,6 +816,18 @@ sub #14., r1 ; r1 will contain the adress of the upper right cell.
 cmp r1, dest ; Checks if the upper right cell == dest.
 beq destFj ; If dest is the upper right cell , the move is legal, branch to dest found.
 jmp LeftWmv ; Keep on checking legal moves to the left (cannot eat so we don't need to check an eating option).
+
+cmp dest, #Board
+bne badIdxj
+mov turn, -(sp) ; Moving current player to the top of the stack.
+mov #0, -(sp) ; Allocating a place for output.
+jsr pc, hasMove
+mov (sp)+, (sp) ; Writing the output of hasMove instead of current player (override).
+tst (sp)+  ; Checks if number of legal moves of current player is 0 and pops it.
+bne badIdxj
+mov #Board, source
+mov #Board, dest
+jmp destFound
 
 badIdxj:
   jmp badIdx
@@ -882,13 +900,13 @@ cmp 18.(r1), #2 ; Checking if the lower left piece is black.
 beq RightBmv ; If the lower left piece is black, cannot go there, Check legal moves to the right.
 ; If we got here the desteation index can be the lower left cell.
 cmp 18.(r1), #1 ; Checking if the lower left piece is black.
-beq eatlbmv ; If the lower left piece is white, check if the black piece can eat it.
+beq .+16 ; If the lower left piece is white, check if the black piece can eat it.
 add #18., r1 ; r1 will contain the adress of the lower left cell.
 cmp dest, r1 ; Checks if the lower left cell == dest.
 beq destFound ; If dest is the lower left cell , the move is legal, branch to dest found.
 br RightBmv ; Keep on checking legal moves to the right (cannot eat so we don't need to check an eating option).
 
-eatlbmv:
+
 add #1, r4 ; Increasing row index by 1.
 cmp r4, #7 ; If r3 is bigger than 7, cannot eat (out of bounds). Check legal moves to the right.
 bgt RightBmv
@@ -1272,17 +1290,6 @@ rts pc
 ; This method will print "Black ".
 printBLK:
 mov #Blk, -(sp)
-jsr pc, printStr
-tst (sp)+
-rts pc
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;-------------------------------------------------------------------------------
-;                                printWPT
-;-------------------------------------------------------------------------------
-; This method will print white player time.
-printWPT:
-mov #wTimeStr, -(sp)
 jsr pc, printStr
 tst (sp)+
 rts pc
